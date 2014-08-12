@@ -6,15 +6,15 @@ import (
 )
 
 type AnyLister interface {
-	Gfi() interface{}
+	Fi() interface{}
 	Sfi(v interface{}) interface{}
-	Gbf() AnyLister
+	Bf() AnyLister
 	Sbf(v AnyLister) AnyLister
 }
 
 type AnyList struct {
-	Fi interface{}
-	Bf AnyLister
+	fi interface{}
+	bf AnyLister
 }
 
 var (
@@ -29,8 +29,8 @@ func Parse(code string) {
 	for i := 0; i < len(code); i++ {
 		if code[i] == ' ' || code[i] == '\t' || code[i] == '\n' {
 			if tok == ")" {
-				Assert(Ps_.Gbf() != nil, "Parse WTF! Too many )s.")
-				Ps_ = Ps_.Gbf()
+				Assert(Ps_.Bf() != nil, "Parse WTF! Too many )s.")
+				Ps_ = Ps_.Bf()
 			} else if len(tok) > 0 {
 				var ls AnyLister
 				if tok == "(" {
@@ -38,10 +38,10 @@ func Parse(code string) {
 				} else {
 					ls = &AnyList{tok, nil}
 				}
-				if Ps_.Gfi() == nil {
-					Ps_.Gbf().Gfi().(AnyLister).Sfi(ls) // 1st token in list
+				if Ps_.Fi() == nil {
+					Ps_.Bf().Fi().(AnyLister).Sfi(ls) // 1st token in list
 				} else {
-					Ps_.Gfi().(AnyLister).Sbf(ls)
+					Ps_.Fi().(AnyLister).Sbf(ls)
 				}
 				Ps_.Sfi(ls)
 				if tok == "(" {
@@ -53,7 +53,7 @@ func Parse(code string) {
 			tok += string(code[i])
 		}
 	}
-	Assert(Ps_.Gbf() == nil, "Parse WTF! Too few )s.")
+	Assert(Ps_.Bf() == nil, "Parse WTF! Too few )s.")
 }
 
 func PrintTree(ls interface{}) {
@@ -63,8 +63,8 @@ func PrintTree(ls interface{}) {
 	case AnyLister:
 		fmt.Print("(")
 		for ls != nil {
-			PrintTree(ls.(AnyLister).Gfi())
-			ls = ls.(AnyLister).Gbf()
+			PrintTree(ls.(AnyLister).Fi())
+			ls = ls.(AnyLister).Bf()
 		}
 		fmt.Print(")")
 	}
@@ -74,16 +74,16 @@ func Ln(ls AnyLister) int {
 	if ls == nil {
 		return 0
 	}
-	if ls.Gbf() == nil {
+	if ls.Bf() == nil {
 		return 1
 	}
-	return Ln(ls.Gbf()) + 1
+	return Ln(ls.Bf()) + 1
 }
 
 func Nth(ls AnyLister, n int) AnyLister {
 	Assert(ls != nil, "WTF! Out of bounds when calling (nth.")
 	if n > 0 {
-		return Nth(ls.Gbf(), n-1)
+		return Nth(ls.Bf(), n-1)
 	}
 	if n < 0 {
 		return Nth(ls, Ln(ls)-n)
@@ -91,21 +91,21 @@ func Nth(ls AnyLister, n int) AnyLister {
 	return ls
 }
 
-func (ls *AnyList) Gfi() interface{} {
-	return ls.Fi
+func (ls *AnyList) Fi() interface{} {
+	return ls.fi
 }
 
 func (ls *AnyList) Sfi(v interface{}) interface{} {
-	ls.Fi = v
+	ls.fi = v
 	return v
 }
 
-func (ls *AnyList) Gbf() AnyLister {
-	return ls.Bf
+func (ls *AnyList) Bf() AnyLister {
+	return ls.bf
 }
 
 func (ls *AnyList) Sbf(v AnyLister) AnyLister {
-	ls.Bf = v
+	ls.bf = v
 	return v
 }
 
