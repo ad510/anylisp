@@ -11,4 +11,5 @@ func main() {
 	file, err := ioutil.ReadFile(os.Args[1])
 	anylisp.Assert(err == nil, "'"+os.Args[1]+"' not found.")
 	anylisp.Parse(string(file))
+	anylisp.PrintTree(anylisp.TempRoot)
 }
