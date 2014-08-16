@@ -10,6 +10,7 @@ type AnyLister interface {
 	Sfi(v interface{}) interface{}
 	Bf() AnyLister
 	Sbf(v AnyLister) AnyLister
+	La() AnyLister
 }
 
 type AnyList struct {
@@ -19,17 +20,19 @@ type AnyList struct {
 
 var (
 	Ps_      AnyLister
+	C_       AnyLister
 	TempRoot AnyLister
 )
 
 func Parse(code string) {
-	TempRoot = &AnyList{}
+	TempRoot = &AnyList{"(sx)", nil}
 	Ps_ = &AnyList{TempRoot, nil}
+	C_ = &AnyList{&AnyList{TempRoot, nil}, nil}
 	tok := ""
 	for i := 0; i < len(code); i++ {
 		if code[i] == ' ' || code[i] == '\t' || code[i] == '\n' {
 			if tok == ")" {
-				Assert(Ps_.Bf() != nil, "Parse WTF! Too many )s.")
+				Assert(Ps_.Bf() != nil, "Parse WTF! Too many )s")
 				Ps_ = Ps_.Bf()
 			} else if len(tok) > 0 {
 				var ls AnyLister
@@ -53,24 +56,84 @@ func Parse(code string) {
 			tok += string(code[i])
 		}
 	}
-	Assert(Ps_.Bf() == nil, "Parse WTF! Too few )s.")
+	Assert(Ps_.Bf() == nil, "Parse WTF! Too few )s")
+}
+
+func Run() {
+	for C_ != nil {
+		frm := C_.Fi().(AnyLister)
+		exp, ok := frm.Fi().(AnyLister)
+		if !ok {
+			fmt.Println("0")
+			Ret(frm.Fi())
+		} else {
+			switch t := exp.Fi().(type) {
+			case nil:
+				Assert(false, "WTF! Can't call the empty set")
+			case AnyLister:
+				if frm.Bf() == nil {
+					fmt.Println("a")
+					C_ = &AnyList{&AnyList{t, nil}, C_}
+				} else {
+					fmt.Println("b")
+					frm.Sfi(frm.Bf().Fi())
+				}
+			case string:
+				switch t {
+				case "(sx)":
+					if exp.Bf() == nil {
+						fmt.Println("c")
+						Ret(nil)
+					} else if frm.Bf() == nil {
+						fmt.Println("d")
+						frm.Sbf(&AnyList{exp.Bf(), nil})
+					} else if frm.Bf().Fi() == nil {
+						fmt.Println("e")
+						Ret(frm.Bf().Bf().Fi())
+					} else {
+						fmt.Println("f")
+						C_ = &AnyList{&AnyList{frm.Bf().Fi(), nil}, C_}
+						frm.Sbf(&AnyList{frm.Bf().Fi().(AnyLister).Bf(), nil}) // what if cast fails?
+					}
+				case "(prn)":
+					fmt.Println("g")
+					s, ok := exp.Bf().Fi().(string)
+					Assert(ok, "WTF! (prn) takes a string")
+					fmt.Println(s)
+					Ret(s)
+				default:
+					Assert(false, "WTF! Can't call undefined function \""+t+"\"")
+				}
+			}
+		}
+	}
 }
 
 func PrintTree(ls interface{}) {
 	switch t := ls.(type) {
-	case string:
-		fmt.Print(t + " ")
+	case nil:
+		fmt.Print("( ) ")
 	case AnyLister:
-		fmt.Print("(")
+		fmt.Print("( ")
 		for ls != nil {
 			PrintTree(ls.(AnyLister).Fi())
 			ls = ls.(AnyLister).Bf()
 		}
-		fmt.Print(")")
+		fmt.Print(") ")
+	case string:
+		fmt.Print(t + " ")
 	}
 }
 
-func Ln(ls AnyLister) int {
+func Ret(v interface{}) {
+	if C_.Bf() != nil {
+		C_.Bf().Fi().(AnyLister).La().Sbf(&AnyList{v, nil})
+	}
+	C_ = C_.Bf()
+}
+
+// currently unused
+/*func Ln(ls AnyLister) int {
 	if ls == nil {
 		return 0
 	}
@@ -89,7 +152,7 @@ func Nth(ls AnyLister, n int) AnyLister {
 		return Nth(ls, Ln(ls)-n)
 	}
 	return ls
-}
+}*/
 
 func (ls *AnyList) Fi() interface{} {
 	return ls.fi
@@ -107,6 +170,13 @@ func (ls *AnyList) Bf() AnyLister {
 func (ls *AnyList) Sbf(v AnyLister) AnyLister {
 	ls.bf = v
 	return v
+}
+
+func (ls *AnyList) La() AnyLister {
+	if ls.bf == nil {
+		return ls
+	}
+	return ls.bf.La()
 }
 
 func Assert(cond bool, msg string) {
