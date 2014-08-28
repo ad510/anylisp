@@ -85,14 +85,18 @@ func Run() {
 			switch t := exp.Fi().(type) {
 			case nil:
 				Assert(false, "WTF! Can't call the empty set")
+			case AnyInter:
+				Assert(false, "WTF! Can't call an int")
 			case AnyLister:
-				if frm.Bf() == nil {
+				Assert(false, "WTF! Can't call a list")
+				// I kind of like the behavior below, but it causes strange error messages if there's a bug
+				/*if frm.Bf() == nil {
 					fmt.Println("a")
 					C_ = &AnyList{&AnyList{t, nil}, C_}
 				} else {
 					fmt.Println("b")
 					frm.Sfi(frm.Bf().Fi())
-				}
+				}*/
 			case string:
 				switch t {
 				case "(sx)":
@@ -107,8 +111,8 @@ func Run() {
 						Ret(frm.Bf().Bf().Fi())
 					} else {
 						fmt.Println("f")
-						C_ = &AnyList{&AnyList{frm.Bf().Fi(), nil}, C_}
-						frm.Sbf(&AnyList{frm.Bf().Fi().(AnyLister).Bf(), nil}) // what if cast fails?
+						C_ = &AnyList{&AnyList{frm.Bf().Fi().(AnyLister).Fi(), nil}, C_}
+						frm.Sbf(&AnyList{frm.Bf().Fi().(AnyLister).Bf(), nil})
 					}
 				case "(prn)":
 					fmt.Println("g")
@@ -120,10 +124,12 @@ func Run() {
 						s[i] = uint8(c.Int64())
 					}
 					fmt.Print(string(s))
-					Ret(s)
+					Ret(exp.Bf())
 				default:
 					Assert(false, "WTF! Can't call undefined function \""+t+"\"")
 				}
+			default:
+				Assert(false, "WTF! Unrecognized function type (probably an interpreter bug)")
 			}
 		}
 	}
