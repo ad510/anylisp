@@ -2,6 +2,7 @@ package anylisp
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 )
 
@@ -16,6 +17,11 @@ type AnyLister interface {
 type AnyList struct {
 	fi interface{}
 	bf AnyLister
+}
+
+type AnyInter interface {
+	Cmp(y *big.Int) (r int)
+	Int64() int64
 }
 
 var (
@@ -38,6 +44,15 @@ func Parse(code string) {
 				var ls AnyLister
 				if tok == "(" {
 					ls = &AnyList{nil, nil}
+				} else if tok[0] == '[' && tok[len(tok)-1] == ']' {
+					for j := 1; j < len(tok)-1; j++ {
+						Assert(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f'),
+							"Parse WTF! Bad character in number")
+					}
+					bi := new(big.Int)
+					_, err := fmt.Sscanf(tok[1:len(tok)-1], "%x", bi)
+					Assert(err == nil, "Parse WTF! Bad number")
+					ls = &AnyList{bi, nil}
 				} else {
 					ls = &AnyList{tok, nil}
 				}
@@ -97,9 +112,14 @@ func Run() {
 					}
 				case "(prn)":
 					fmt.Println("g")
-					s, ok := exp.Bf().Fi().(string)
-					Assert(ok, "WTF! (prn) takes a string")
-					fmt.Println(s)
+					s := make([]uint8, Ln(exp) - 1)
+					for i, arg := 0, exp.Bf(); arg != nil; i, arg = i+1, arg.Bf() {
+						c, ok := arg.Fi().(AnyInter)
+						Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
+							"WTF! (prn) takes a string")
+						s[i] = uint8(c.Int64())
+					}
+					fmt.Print(string(s))
 					Ret(s)
 				default:
 					Assert(false, "WTF! Can't call undefined function \""+t+"\"")
@@ -132,8 +152,7 @@ func Ret(v interface{}) {
 	C_ = C_.Bf()
 }
 
-// currently unused
-/*func Ln(ls AnyLister) int {
+func Ln(ls AnyLister) int {
 	if ls == nil {
 		return 0
 	}
@@ -143,7 +162,8 @@ func Ret(v interface{}) {
 	return Ln(ls.Bf()) + 1
 }
 
-func Nth(ls AnyLister, n int) AnyLister {
+// currently unused
+/*func Nth(ls AnyLister, n int) AnyLister {
 	Assert(ls != nil, "WTF! Out of bounds when calling (nth.")
 	if n > 0 {
 		return Nth(ls.Bf(), n-1)
