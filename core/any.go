@@ -42,9 +42,9 @@ func Parse(code string) {
 				Ps_ = Ps_.Bf()
 			} else if len(tok) > 0 {
 				var ls AnyLister
-				if tok == "(" {
+				if tok == "(" { // list
 					ls = &AnyList{nil, nil}
-				} else if tok[0] == '[' && tok[len(tok)-1] == ']' {
+				} else if tok[0] == '[' && tok[len(tok)-1] == ']' { // number
 					for j := 1; j < len(tok)-1; j++ {
 						Assert(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f'),
 							"Parse WTF! Bad character in number")
@@ -53,7 +53,7 @@ func Parse(code string) {
 					_, err := fmt.Sscanf(tok[1:len(tok)-1], "%x", bi)
 					Assert(err == nil, "Parse WTF! Bad number")
 					ls = &AnyList{bi, nil}
-				} else {
+				} else { // symbol
 					ls = &AnyList{tok, nil}
 				}
 				if Ps_.Fi() == nil {
@@ -76,10 +76,11 @@ func Parse(code string) {
 
 func Run() {
 	for C_ != nil {
-		frm := C_.Fi().(AnyLister)
+		frm, ok := C_.Fi().(AnyLister)
+		Assert(ok, "WTF! Bad stack frame")
 		exp, ok := frm.Fi().(AnyLister)
 		if !ok {
-			fmt.Println("0")
+			fmt.Print("0 ")
 			Ret(frm.Fi())
 		} else {
 			switch t := exp.Fi().(type) {
@@ -101,26 +102,50 @@ func Run() {
 				switch t {
 				case "(sx)":
 					if exp.Bf() == nil {
-						fmt.Println("c")
+						fmt.Print("{0 ")
 						Ret(nil)
 					} else if frm.Bf() == nil {
-						fmt.Println("d")
+						fmt.Print("{1 ")
 						frm.Sbf(&AnyList{exp.Bf(), nil})
 					} else if frm.Bf().Fi() == nil {
-						fmt.Println("e")
+						fmt.Print("{2 ")
 						Ret(frm.Bf().Bf().Fi())
 					} else {
-						fmt.Println("f")
-						C_ = &AnyList{&AnyList{frm.Bf().Fi().(AnyLister).Fi(), nil}, C_}
-						frm.Sbf(&AnyList{frm.Bf().Fi().(AnyLister).Bf(), nil})
+						fmt.Print("{3 ")
+						arg := Arg()
+						C_ = &AnyList{&AnyList{arg.Fi(), nil}, C_}
+						frm.Sbf(&AnyList{arg.Bf(), nil})
 					}
-				case "(prn)":
-					fmt.Println("g")
+				case "(?)":
+					if frm.Bf() == nil {
+						fmt.Print("?0 ")
+						frm.Sbf(&AnyList{exp.Bf(), nil})
+					} else if frm.Bf().Bf() != nil {
+						r := frm.Bf().Bf().Fi()
+						if Arg().Bf() == nil {
+							fmt.Print("?1 ")
+							Ret(r)
+						} else if r != nil {
+							fmt.Print("?2 ")
+							frm.Sbf(&AnyList{Arg().Bf(), nil})
+						} else {
+							fmt.Print("?3 ")
+							frm.Sbf(&AnyList{Arg().Bf().Bf(), nil})
+						}
+					} else if frm.Bf().Fi() == nil {
+						fmt.Print("?4 ")
+						Ret(nil)
+					} else {
+						fmt.Print("?5 ")
+						C_ = &AnyList{&AnyList{Arg().Fi(), nil}, C_}
+					}
+				case "(pr)":
+					fmt.Print("pr ")
 					s := make([]uint8, Ln(exp) - 1)
 					for i, arg := 0, exp.Bf(); arg != nil; i, arg = i+1, arg.Bf() {
 						c, ok := arg.Fi().(AnyInter)
 						Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
-							"WTF! (prn) takes a string")
+							"WTF! (pr) takes a string")
 						s[i] = uint8(c.Int64())
 					}
 					fmt.Print(string(s))
@@ -158,6 +183,12 @@ func Ret(v interface{}) {
 	C_ = C_.Bf()
 }
 
+func Arg() AnyLister {
+	arg, ok := C_.Fi().(AnyLister).Bf().Fi().(AnyLister)
+	Assert(ok, "WTF! Bad argument in stack frame")
+	return arg
+}
+
 func Ln(ls AnyLister) int {
 	if ls == nil {
 		return 0
@@ -170,7 +201,7 @@ func Ln(ls AnyLister) int {
 
 // currently unused
 /*func Nth(ls AnyLister, n int) AnyLister {
-	Assert(ls != nil, "WTF! Out of bounds when calling (nth.")
+	Assert(ls != nil, "WTF! Out of bounds when calling (nth).")
 	if n > 0 {
 		return Nth(ls.Bf(), n-1)
 	}

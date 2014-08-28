@@ -15,4 +15,5 @@ func main() {
 	anylisp.PrintTree(anylisp.TempRoot)
 	fmt.Println()
 	anylisp.Run()
+	fmt.Println()
 }
