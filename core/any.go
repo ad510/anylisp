@@ -31,7 +31,7 @@ var (
 )
 
 func Parse(code string) {
-	TempRoot = &AnyList{"(sx)", nil}
+	TempRoot = &AnyList{"sx'", nil}
 	Ps_ = &AnyList{TempRoot, nil}
 	C_ = &AnyList{&AnyList{TempRoot, nil}, nil}
 	tok := ""
@@ -111,7 +111,7 @@ func Run() {
 				}*/
 			case string:
 				switch t {
-				case "(sx)": // (sx), arg, ret
+				case "sx'": // sx', arg, ret
 					if exp.Bf() == nil {
 						fmt.Print("{0 ")
 						Ret(nil)
@@ -126,7 +126,7 @@ func Run() {
 						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
 						frm.Sbf(&AnyList{ArgL(1).Bf(), nil})
 					}
-				case "(')":
+				case "q'":
 					if exp.Bf() == nil {
 						fmt.Print("'0 ")
 						Ret(nil)
@@ -134,9 +134,9 @@ func Run() {
 						fmt.Print("'1 ")
 						Ret(exp.Bf().Fi())
 					}
-				case "(?)":
-					// (?), if part, then part, ret
-					// (?), then part, nil, ret
+				case "?'":
+					// ?', if part, then part, ret
+					// ?', then part, nil, ret
 					if exp.Bf() == nil {
 						fmt.Print("?0 ")
 						Ret(nil)
@@ -161,8 +161,8 @@ func Run() {
 						fmt.Print("?6 ")
 						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
 					}
-				case "(pr)":
-					// (pr), ret
+				case "pr'":
+					// pr', ret
 					if exp.Bf() == nil {
 						fmt.Print("pr0 ")
 						Ret(nil)
@@ -175,7 +175,7 @@ func Run() {
 						for i, arg := 0, ArgL(1); arg != nil; i, arg = i+1, arg.Bf() {
 							c, ok := arg.Fi().(AnyInter)
 							Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
-								"WTF! (pr) takes a string")
+								"WTF! pr' takes a string")
 							s[i] = uint8(c.Int64())
 						}
 						fmt.Print(string(s))
@@ -225,7 +225,7 @@ func Ln(ls AnyLister) int {
 }
 
 func Nth(ls AnyLister, n int) AnyLister {
-	Assert(ls != nil, "WTF! Out of bounds when calling (nth).")
+	Assert(ls != nil, "WTF! Out of bounds when calling nth'.")
 	if n > 0 {
 		return Nth(ls.Bf(), n-1)
 	}
