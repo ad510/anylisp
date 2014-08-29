@@ -78,6 +78,17 @@ func Run() {
 	for C_ != nil {
 		frm, ok := C_.Fi().(AnyLister)
 		Assert(ok, "WTF! Bad stack frame")
+		HasArg := func(n int) bool {
+			return Nth(frm, n-1).Bf() != nil
+		}
+		Arg := func(n int) interface{} {
+			return Nth(frm, n).Fi()
+		}
+		ArgL := func(n int) AnyLister {
+			arg, ok := Arg(n).(AnyLister)
+			Assert(ok, "WTF! Bad stack frame argument "+string(n))
+			return arg
+		}
 		exp, ok := frm.Fi().(AnyLister)
 		if !ok {
 			fmt.Print("0 ")
@@ -85,7 +96,7 @@ func Run() {
 		} else {
 			switch t := exp.Fi().(type) {
 			case nil:
-				Assert(false, "WTF! Can't call the empty set")
+				Assert(false, "WTF! Can't call the empty list")
 			case AnyInter:
 				Assert(false, "WTF! Can't call an int")
 			case AnyLister:
@@ -100,48 +111,51 @@ func Run() {
 				}*/
 			case string:
 				switch t {
-				case "(sx)":
+				case "(sx)": // (sx), arg, ret
 					if exp.Bf() == nil {
 						fmt.Print("{0 ")
 						Ret(nil)
-					} else if frm.Bf() == nil {
+					} else if !HasArg(1) {
 						fmt.Print("{1 ")
 						frm.Sbf(&AnyList{exp.Bf(), nil})
-					} else if frm.Bf().Fi() == nil {
+					} else if Arg(1) == nil {
 						fmt.Print("{2 ")
-						Ret(frm.Bf().Bf().Fi())
+						Ret(Arg(2))
 					} else {
 						fmt.Print("{3 ")
-						arg := Arg()
-						C_ = &AnyList{&AnyList{arg.Fi(), nil}, C_}
-						frm.Sbf(&AnyList{arg.Bf(), nil})
+						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
+						frm.Sbf(&AnyList{ArgL(1).Bf(), nil})
 					}
 				case "(?)":
-					if frm.Bf() == nil {
+					// (?), if part, then part, ret
+					// (?), then part, nil, ret
+					if exp.Bf() == nil {
 						fmt.Print("?0 ")
-						frm.Sbf(&AnyList{exp.Bf(), nil})
-					} else if frm.Bf().Bf() != nil {
-						r := frm.Bf().Bf().Fi()
-						if Arg().Bf() == nil {
-							fmt.Print("?1 ")
-							Ret(r)
-						} else if r != nil {
-							fmt.Print("?2 ")
-							frm.Sbf(&AnyList{Arg().Bf(), nil})
-						} else {
-							fmt.Print("?3 ")
-							frm.Sbf(&AnyList{Arg().Bf().Bf(), nil})
-						}
-					} else if frm.Bf().Fi() == nil {
-						fmt.Print("?4 ")
 						Ret(nil)
+					} else if !HasArg(1) {
+						fmt.Print("?1 ")
+						frm.Sbf(&AnyList{exp.Bf(), &AnyList{exp.Bf().Bf(), nil}})
+					} else if HasArg(3) {
+						if Arg(2) == nil {
+							fmt.Print("?2 ")
+							Ret(Arg(3))
+						} else if Arg(3) != nil {
+							fmt.Print("?3 ")
+							frm.Sbf(&AnyList{ArgL(1).Bf(), &AnyList{nil, nil}})
+						} else if ArgL(2).Bf() == nil {
+							fmt.Print("?4 ")
+							Ret(nil)
+						} else {
+							fmt.Print("?5 ")
+							frm.Sbf(&AnyList{ArgL(2).Bf(), &AnyList{ArgL(2).Bf().Bf(), nil}})
+						}
 					} else {
-						fmt.Print("?5 ")
-						C_ = &AnyList{&AnyList{Arg().Fi(), nil}, C_}
+						fmt.Print("?6 ")
+						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
 					}
 				case "(pr)":
 					fmt.Print("pr ")
-					s := make([]uint8, Ln(exp) - 1)
+					s := make([]uint8, Ln(exp)-1)
 					for i, arg := 0, exp.Bf(); arg != nil; i, arg = i+1, arg.Bf() {
 						c, ok := arg.Fi().(AnyInter)
 						Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
@@ -183,12 +197,6 @@ func Ret(v interface{}) {
 	C_ = C_.Bf()
 }
 
-func Arg() AnyLister {
-	arg, ok := C_.Fi().(AnyLister).Bf().Fi().(AnyLister)
-	Assert(ok, "WTF! Bad argument in stack frame")
-	return arg
-}
-
 func Ln(ls AnyLister) int {
 	if ls == nil {
 		return 0
@@ -199,8 +207,7 @@ func Ln(ls AnyLister) int {
 	return Ln(ls.Bf()) + 1
 }
 
-// currently unused
-/*func Nth(ls AnyLister, n int) AnyLister {
+func Nth(ls AnyLister, n int) AnyLister {
 	Assert(ls != nil, "WTF! Out of bounds when calling (nth).")
 	if n > 0 {
 		return Nth(ls.Bf(), n-1)
@@ -209,7 +216,7 @@ func Ln(ls AnyLister) int {
 		return Nth(ls, Ln(ls)-n)
 	}
 	return ls
-}*/
+}
 
 func (ls *AnyList) Fi() interface{} {
 	return ls.fi
