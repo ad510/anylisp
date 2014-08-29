@@ -86,7 +86,7 @@ func Run() {
 		}
 		ArgL := func(n int) AnyLister {
 			arg, ok := Arg(n).(AnyLister)
-			Assert(ok, "WTF! Bad stack frame argument "+string(n))
+			Assert(ok, fmt.Sprintf("WTF! Stack frame argument %d isn't a list", n))
 			return arg
 		}
 		exp, ok := frm.Fi().(AnyLister)
@@ -126,6 +126,14 @@ func Run() {
 						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
 						frm.Sbf(&AnyList{ArgL(1).Bf(), nil})
 					}
+				case "(')":
+					if exp.Bf() == nil {
+						fmt.Print("'0 ")
+						Ret(nil)
+					} else {
+						fmt.Print("'1 ")
+						Ret(exp.Bf().Fi())
+					}
 				case "(?)":
 					// (?), if part, then part, ret
 					// (?), then part, nil, ret
@@ -154,16 +162,25 @@ func Run() {
 						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
 					}
 				case "(pr)":
-					fmt.Print("pr ")
-					s := make([]uint8, Ln(exp)-1)
-					for i, arg := 0, exp.Bf(); arg != nil; i, arg = i+1, arg.Bf() {
-						c, ok := arg.Fi().(AnyInter)
-						Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
-							"WTF! (pr) takes a string")
-						s[i] = uint8(c.Int64())
+					// (pr), ret
+					if exp.Bf() == nil {
+						fmt.Print("pr0 ")
+						Ret(nil)
+					} else if !HasArg(1) {
+						fmt.Print("pr1 ")
+						C_ = &AnyList{&AnyList{exp.Bf().Fi(), nil}, C_}
+					} else {
+						fmt.Print("pr2 ")
+						s := make([]uint8, Ln(ArgL(1)))
+						for i, arg := 0, ArgL(1); arg != nil; i, arg = i+1, arg.Bf() {
+							c, ok := arg.Fi().(AnyInter)
+							Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
+								"WTF! (pr) takes a string")
+							s[i] = uint8(c.Int64())
+						}
+						fmt.Print(string(s))
+						Ret(Arg(1))
 					}
-					fmt.Print(string(s))
-					Ret(exp.Bf())
 				default:
 					Assert(false, "WTF! Can't call undefined function \""+t+"\"")
 				}
