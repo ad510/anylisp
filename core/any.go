@@ -6,44 +6,44 @@ import (
 	"os"
 )
 
-type AnyLister interface {
-	Fi() interface{}
-	Sfi(v interface{}) interface{}
-	Bf() AnyLister
-	Sbf(v AnyLister) AnyLister
-	La() AnyLister
+type Lister interface {
+	Car() interface{}
+	SetCar(v interface{}) interface{}
+	Cdr() Lister
+	SetCdr(v Lister) Lister
+	Last() Lister
 }
 
-type AnyList struct {
-	fi interface{}
-	bf AnyLister
+type List struct {
+	car interface{}
+	cdr Lister
 }
 
-type AnyInter interface {
+type Inter interface {
 	Cmp(y *big.Int) (r int)
 	Int64() int64
 }
 
 var (
-	Ps_      AnyLister
-	C_       AnyLister
-	TempRoot AnyLister
+	Ps_      Lister
+	C_       Lister
+	TempRoot Lister
 )
 
 func Parse(code string) {
-	TempRoot = &AnyList{"sx'", nil}
-	Ps_ = &AnyList{TempRoot, nil}
-	C_ = &AnyList{&AnyList{TempRoot, nil}, nil}
+	TempRoot = &List{"sx'", nil}
+	Ps_ = &List{TempRoot, nil}
+	C_ = &List{&List{TempRoot, nil}, nil}
 	tok := ""
 	for i := 0; i < len(code); i++ {
 		if code[i] == ' ' || code[i] == '\t' || code[i] == '\n' {
 			if tok == ")" {
-				Assert(Ps_.Bf() != nil, "Parse WTF! Too many )s")
-				Ps_ = Ps_.Bf()
+				Assert(Ps_.Cdr() != nil, "Parse WTF! Too many )s")
+				Ps_ = Ps_.Cdr()
 			} else if len(tok) > 0 {
-				var ls AnyLister
+				var ls Lister
 				if tok == "(" { // list
-					ls = &AnyList{nil, nil}
+					ls = &List{nil, nil}
 				} else if tok[0] == '[' && tok[len(tok)-1] == ']' { // number
 					for j := 1; j < len(tok)-1; j++ {
 						Assert(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f'),
@@ -52,18 +52,18 @@ func Parse(code string) {
 					bi := new(big.Int)
 					_, err := fmt.Sscanf(tok[1:len(tok)-1], "%x", bi)
 					Assert(err == nil, "Parse WTF! Bad number")
-					ls = &AnyList{bi, nil}
+					ls = &List{bi, nil}
 				} else { // symbol
-					ls = &AnyList{tok, nil}
+					ls = &List{tok, nil}
 				}
-				if Ps_.Fi() == nil {
-					Ps_.Bf().Fi().(AnyLister).Sfi(ls) // 1st token in list
+				if Ps_.Car() == nil {
+					Ps_.Cdr().Car().(Lister).SetCar(ls) // 1st token in list
 				} else {
-					Ps_.Fi().(AnyLister).Sbf(ls)
+					Ps_.Car().(Lister).SetCdr(ls)
 				}
-				Ps_.Sfi(ls)
+				Ps_.SetCar(ls)
 				if tok == "(" {
-					Ps_ = &AnyList{nil, Ps_}
+					Ps_ = &List{nil, Ps_}
 				}
 			}
 			tok = ""
@@ -71,109 +71,109 @@ func Parse(code string) {
 			tok += string(code[i])
 		}
 	}
-	Assert(Ps_.Bf() == nil, "Parse WTF! Too few )s")
+	Assert(Ps_.Cdr() == nil, "Parse WTF! Too few )s")
 }
 
 func Run() {
 	for C_ != nil {
-		frm, ok := C_.Fi().(AnyLister)
+		frm, ok := C_.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
 		HasArg := func(n int) bool {
-			return Nth(frm, n-1).Bf() != nil
+			return Nth(frm, n-1).Cdr() != nil
 		}
 		Arg := func(n int) interface{} {
-			return Nth(frm, n).Fi()
+			return Nth(frm, n).Car()
 		}
-		ArgL := func(n int) AnyLister {
-			arg, ok := Arg(n).(AnyLister)
+		ArgL := func(n int) Lister {
+			arg, ok := Arg(n).(Lister)
 			Assert(ok, fmt.Sprintf("WTF! Stack frame argument %d isn't a list", n))
 			return arg
 		}
-		exp, ok := frm.Fi().(AnyLister)
+		exp, ok := frm.Car().(Lister)
 		if !ok {
 			fmt.Print("0 ")
-			Ret(frm.Fi())
+			Ret(frm.Car())
 		} else {
-			switch t := exp.Fi().(type) {
+			switch t := exp.Car().(type) {
 			case nil:
 				Assert(false, "WTF! Can't call the empty list")
-			case AnyInter:
+			case Inter:
 				Assert(false, "WTF! Can't call an int")
-			case AnyLister:
+			case Lister:
 				Assert(false, "WTF! Can't call a list")
 				// I kind of like the behavior below, but it causes strange error messages if there's a bug
-				/*if frm.Bf() == nil {
+				/*if frm.Cdr() == nil {
 					fmt.Println("a")
-					C_ = &AnyList{&AnyList{t, nil}, C_}
+					C_ = &List{&List{t, nil}, C_}
 				} else {
 					fmt.Println("b")
-					frm.Sfi(frm.Bf().Fi())
+					frm.SetCar(frm.Cdr().Car())
 				}*/
 			case string:
 				switch t {
 				case "sx'": // sx', arg, ret
-					if exp.Bf() == nil {
+					if exp.Cdr() == nil {
 						fmt.Print("{0 ")
 						Ret(nil)
 					} else if !HasArg(1) {
 						fmt.Print("{1 ")
-						frm.Sbf(&AnyList{exp.Bf(), nil})
+						frm.SetCdr(&List{exp.Cdr(), nil})
 					} else if Arg(1) == nil {
 						fmt.Print("{2 ")
 						Ret(Arg(2))
 					} else {
 						fmt.Print("{3 ")
-						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
-						frm.Sbf(&AnyList{ArgL(1).Bf(), nil})
+						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
+						frm.SetCdr(&List{ArgL(1).Cdr(), nil})
 					}
 				case "q'":
-					if exp.Bf() == nil {
+					if exp.Cdr() == nil {
 						fmt.Print("'0 ")
 						Ret(nil)
 					} else {
 						fmt.Print("'1 ")
-						Ret(exp.Bf().Fi())
+						Ret(exp.Cdr().Car())
 					}
 				case "?'":
 					// ?', if part, then part, ret
 					// ?', then part, nil, ret
-					if exp.Bf() == nil {
+					if exp.Cdr() == nil {
 						fmt.Print("?0 ")
 						Ret(nil)
 					} else if !HasArg(1) {
 						fmt.Print("?1 ")
-						frm.Sbf(&AnyList{exp.Bf(), &AnyList{exp.Bf().Bf(), nil}})
+						frm.SetCdr(&List{exp.Cdr(), &List{exp.Cdr().Cdr(), nil}})
 					} else if HasArg(3) {
 						if Arg(2) == nil {
 							fmt.Print("?2 ")
 							Ret(Arg(3))
 						} else if Arg(3) != nil {
 							fmt.Print("?3 ")
-							frm.Sbf(&AnyList{ArgL(1).Bf(), &AnyList{nil, nil}})
-						} else if ArgL(2).Bf() == nil {
+							frm.SetCdr(&List{ArgL(1).Cdr(), &List{nil, nil}})
+						} else if ArgL(2).Cdr() == nil {
 							fmt.Print("?4 ")
 							Ret(nil)
 						} else {
 							fmt.Print("?5 ")
-							frm.Sbf(&AnyList{ArgL(2).Bf(), &AnyList{ArgL(2).Bf().Bf(), nil}})
+							frm.SetCdr(&List{ArgL(2).Cdr(), &List{ArgL(2).Cdr().Cdr(), nil}})
 						}
 					} else {
 						fmt.Print("?6 ")
-						C_ = &AnyList{&AnyList{ArgL(1).Fi(), nil}, C_}
+						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
 					}
 				case "pr'":
 					// pr', ret
-					if exp.Bf() == nil {
+					if exp.Cdr() == nil {
 						fmt.Print("pr0 ")
 						Ret(nil)
 					} else if !HasArg(1) {
 						fmt.Print("pr1 ")
-						C_ = &AnyList{&AnyList{exp.Bf().Fi(), nil}, C_}
+						C_ = &List{&List{exp.Cdr().Car(), nil}, C_}
 					} else {
 						fmt.Print("pr2 ")
-						s := make([]uint8, Ln(ArgL(1)))
-						for i, arg := 0, ArgL(1); arg != nil; i, arg = i+1, arg.Bf() {
-							c, ok := arg.Fi().(AnyInter)
+						s := make([]uint8, Len(ArgL(1)))
+						for i, arg := 0, ArgL(1); arg != nil; i, arg = i+1, arg.Cdr() {
+							c, ok := arg.Car().(Inter)
 							Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
 								"WTF! pr' takes a string")
 							s[i] = uint8(c.Int64())
@@ -195,11 +195,11 @@ func PrintTree(ls interface{}) {
 	switch t := ls.(type) {
 	case nil:
 		fmt.Print("( ) ")
-	case AnyLister:
+	case Lister:
 		fmt.Print("( ")
 		for ls != nil {
-			PrintTree(ls.(AnyLister).Fi())
-			ls = ls.(AnyLister).Bf()
+			PrintTree(ls.(Lister).Car())
+			ls = ls.(Lister).Cdr()
 		}
 		fmt.Print(") ")
 	case string:
@@ -208,56 +208,56 @@ func PrintTree(ls interface{}) {
 }
 
 func Ret(v interface{}) {
-	if C_.Bf() != nil {
-		C_.Bf().Fi().(AnyLister).La().Sbf(&AnyList{v, nil})
+	if C_.Cdr() != nil {
+		C_.Cdr().Car().(Lister).Last().SetCdr(&List{v, nil})
 	}
-	C_ = C_.Bf()
+	C_ = C_.Cdr()
 }
 
-func Ln(ls AnyLister) int {
+func Len(ls Lister) int {
 	if ls == nil {
 		return 0
 	}
-	if ls.Bf() == nil {
+	if ls.Cdr() == nil {
 		return 1
 	}
-	return Ln(ls.Bf()) + 1
+	return Len(ls.Cdr()) + 1
 }
 
-func Nth(ls AnyLister, n int) AnyLister {
+func Nth(ls Lister, n int) Lister {
 	Assert(ls != nil, "WTF! Out of bounds when calling nth'.")
 	if n > 0 {
-		return Nth(ls.Bf(), n-1)
+		return Nth(ls.Cdr(), n-1)
 	}
 	if n < 0 {
-		return Nth(ls, Ln(ls)-n)
+		return Nth(ls, Len(ls)-n)
 	}
 	return ls
 }
 
-func (ls *AnyList) Fi() interface{} {
-	return ls.fi
+func (ls *List) Car() interface{} {
+	return ls.car
 }
 
-func (ls *AnyList) Sfi(v interface{}) interface{} {
-	ls.fi = v
+func (ls *List) SetCar(v interface{}) interface{} {
+	ls.car = v
 	return v
 }
 
-func (ls *AnyList) Bf() AnyLister {
-	return ls.bf
+func (ls *List) Cdr() Lister {
+	return ls.cdr
 }
 
-func (ls *AnyList) Sbf(v AnyLister) AnyLister {
-	ls.bf = v
+func (ls *List) SetCdr(v Lister) Lister {
+	ls.cdr = v
 	return v
 }
 
-func (ls *AnyList) La() AnyLister {
-	if ls.bf == nil {
+func (ls *List) Last() Lister {
+	if ls.cdr == nil {
 		return ls
 	}
-	return ls.bf.La()
+	return ls.cdr.Last()
 }
 
 func Assert(cond bool, msg string) {
