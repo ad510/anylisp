@@ -163,6 +163,7 @@ func Run() {
 					}
 				case "pr'":
 					// pr', ret
+					// TODO: print all arguments
 					if exp.Cdr() == nil {
 						fmt.Print("pr0 ")
 						Ret(nil)
@@ -195,6 +196,8 @@ func PrintTree(ls interface{}) {
 	switch t := ls.(type) {
 	case nil:
 		fmt.Print("( ) ")
+	case Inter:
+		fmt.Printf("[%x] ", t)
 	case Lister:
 		fmt.Print("( ")
 		for ls != nil {
@@ -204,6 +207,8 @@ func PrintTree(ls interface{}) {
 		fmt.Print(") ")
 	case string:
 		fmt.Print(t + " ")
+	default:
+		Assert(false, "Unrecognized object in tree")
 	}
 }
 
