@@ -118,28 +118,22 @@ func Run() {
 					} else if !HasArg(1) {
 						fmt.Print("{1 ")
 						frm.SetCdr(&List{exp.Cdr(), nil})
-					} else if Arg(1) == nil {
+					} else if Arg(1) != nil {
 						fmt.Print("{2 ")
-						Ret(Arg(2))
-					} else {
-						fmt.Print("{3 ")
 						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
 						frm.SetCdr(&List{ArgL(1).Cdr(), nil})
+					} else {
+						fmt.Print("{3 ")
+						Ret(Arg(2))
 					}
 				case "q'":
-					if exp.Cdr() == nil {
-						fmt.Print("'0 ")
-						Ret(nil)
-					} else {
-						fmt.Print("'1 ")
-						Ret(exp.Cdr().Car())
-					}
+					fmt.Print("' ")
+					Assert(exp.Cdr() != nil, "WTF! Missing argument to quote")
+					Ret(exp.Cdr().Car())
 				case ":^'", ":>'", ":|'": // op, ret
-					if exp.Cdr() == nil {
-						fmt.Print(":0 ")
-						Ret(nil)
-					} else if !HasArg(1) {
+					if !HasArg(1) {
 						fmt.Print(":1 ")
+						Assert(exp.Cdr() != nil, "WTF! Missing argument to "+t)
 						C_ = &List{&List{exp.Cdr().Car(), nil}, C_}
 					} else if Arg(1) == nil {
 						fmt.Print(":2 ")
@@ -156,17 +150,18 @@ func Run() {
 						}
 					}
 				case "lt'": // lt', args...
-					if !HasArg(1) {
+					if exp.Cdr() == nil {
 						fmt.Print("lt0 ")
-						Assert(exp.Cdr() != nil, "WTF! lt' takes >=2 arguments but you gave it 0")
+						Ret(nil)
+					} else if !HasArg(1) {
+						fmt.Print("lt1 ")
 						frm.SetCdr(&List{exp.Cdr(), nil})
 					} else if Arg(1) != nil {
-						fmt.Print("lt1 ")
+						fmt.Print("lt2 ")
 						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
 						frm.Cdr().SetCar(ArgL(1).Cdr())
 					} else {
-						fmt.Print("lt2 ")
-						Assert(Len(frm) >= 4, fmt.Sprintf("WTF! lt' takes >=2 arguments but you gave it %d", Len(frm) - 2))
+						fmt.Print("lt3 ")
 						switch t2 := frm.Last().Car().(type) {
 						case nil:
 							Nth(frm, -2).SetCdr(nil)
@@ -186,23 +181,23 @@ func Run() {
 					} else if !HasArg(1) {
 						fmt.Print("?1 ")
 						frm.SetCdr(&List{exp.Cdr(), &List{exp.Cdr().Cdr(), nil}})
-					} else if HasArg(3) {
+					} else if !HasArg(3) {
+						fmt.Print("?2 ")
+						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
+					} else {
 						if Arg(2) == nil {
-							fmt.Print("?2 ")
+							fmt.Print("?3 ")
 							Ret(Arg(3))
 						} else if Arg(3) != nil {
-							fmt.Print("?3 ")
+							fmt.Print("?4 ")
 							frm.SetCdr(&List{ArgL(1).Cdr(), &List{nil, nil}})
 						} else if ArgL(2).Cdr() == nil {
-							fmt.Print("?4 ")
+							fmt.Print("?5 ")
 							Ret(nil)
 						} else {
-							fmt.Print("?5 ")
+							fmt.Print("?6 ")
 							frm.SetCdr(&List{ArgL(2).Cdr(), &List{ArgL(2).Cdr().Cdr(), nil}})
 						}
-					} else {
-						fmt.Print("?6 ")
-						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
 					}
 				case "pr'":
 					// pr', ret
@@ -276,7 +271,9 @@ func Len(ls Lister) int {
 }
 
 func Nth(ls Lister, n int) Lister {
-	Assert(ls != nil, "WTF! Out of bounds when calling nth'.")
+	if ls == nil {
+		return nil
+	}
 	if n > 0 {
 		return Nth(ls.Cdr(), n-1)
 	}
