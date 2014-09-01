@@ -139,7 +139,7 @@ func Run() {
 							Ret(arg.Last())
 						}
 					}
-				case "lt'": // lt', args...
+				case "lt'": // lt', arg, ret...
 					if e.Cdr() == nil {
 						fmt.Print("lt0 ")
 						Ret(nil)
@@ -152,14 +152,7 @@ func Run() {
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						fmt.Print("lt3 ")
-						switch t2 := f.Last().Car().(type) {
-						case nil:
-							NCdr(f, -2).SetCdr(nil)
-						case Lister:
-							NCdr(f, -2).SetCdr(t2)
-						default:
-							Assert(false, "WTF! Last argument to lt' must be a list")
-						}
+						SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to lt' must be a list")
 						Ret(NCdr(f, 2))
 					}
 				case "?'":
@@ -188,28 +181,34 @@ func Run() {
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
 				case "pr'":
-					// pr', ret
-					// TODO: print all arguments
+					// pr', arg, ret...
 					if e.Cdr() == nil {
 						fmt.Print("pr0 ")
 						Ret(nil)
 					} else if f.Cdr() == nil {
 						fmt.Print("pr1 ")
-						C_ = &List{&List{e.Cdr().Car(), nil}, C_}
-					} else if f.Cdr().Car() == nil {
-						fmt.Print("pr2 ")
-						Ret(nil)
+						f.SetCdr(&List{e.Cdr(), nil})
 					} else {
-						fmt.Print("pr3 ")
-						s := make([]uint8, Len(NCarLA(f, 1, "WTF! pr' takes a string")))
-						for i, arg := 0, NCarL(f, 1); arg != nil; i, arg = i+1, arg.Cdr() {
-							c, ok := arg.Car().(Inter)
-							Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
-								"WTF! pr' takes a string")
-							s[i] = uint8(c.Int64())
+						if f.Cdr().Cdr() != nil {
+							fmt.Print("pr2 ")
+							SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! pr' takes a string")
 						}
-						fmt.Print(string(s))
-						Ret(f.Cdr().Car())
+						if f.Cdr().Car() != nil {
+							fmt.Print("pr3 ")
+							C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
+							f.Cdr().SetCar(NCarL(f, 1).Cdr())
+						} else {
+							fmt.Print("pr4 ")
+							s := make([]uint8, Len(f.Cdr().Cdr()))
+							for i, arg := 0, f.Cdr().Cdr(); arg != nil; i, arg = i+1, arg.Cdr() {
+								c, ok := arg.Car().(Inter)
+								Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
+									"WTF! Bad byte passed to pr'")
+								s[i] = uint8(c.Int64())
+							}
+							fmt.Print(string(s))
+							Ret(f.Cdr().Cdr())
+						}
 					}
 				default:
 					Assert(false, "WTF! Can't call undefined function \""+t+"\"")
@@ -285,6 +284,17 @@ func NCdr(ls Lister, n int) Lister {
 		return NCdr(ls, Len(ls)+n)
 	}
 	return ls
+}
+
+func SetCdrA(ls Lister, v interface{}, msg string) Lister {
+	switch t := v.(type) {
+	case nil:
+		return ls.SetCdr(nil)
+	case Lister:
+		return ls.SetCdr(t)
+	}
+	Assert(false, msg)
+	return nil
 }
 
 func (ls *List) Car() interface{} {
