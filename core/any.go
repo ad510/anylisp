@@ -134,7 +134,7 @@ func Run() {
 						fmt.Print("'1 ")
 						Ret(exp.Cdr().Car())
 					}
-				case ":^'", ":>'", ":|'":
+				case ":^'", ":>'", ":|'": // op, ret
 					if exp.Cdr() == nil {
 						fmt.Print(":0 ")
 						Ret(nil)
@@ -154,6 +154,28 @@ func Run() {
 						case ":|'":
 							Ret(ArgL(1).Last())
 						}
+					}
+				case "lt'": // lt', args...
+					if !HasArg(1) {
+						fmt.Print("lt0 ")
+						Assert(exp.Cdr() != nil, "WTF! lt' takes >=2 arguments but you gave it 0")
+						frm.SetCdr(&List{exp.Cdr(), nil})
+					} else if Arg(1) != nil {
+						fmt.Print("lt1 ")
+						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
+						frm.Cdr().SetCar(ArgL(1).Cdr())
+					} else {
+						fmt.Print("lt2 ")
+						Assert(Len(frm) >= 4, fmt.Sprintf("WTF! lt' takes >=2 arguments but you gave it %d", Len(frm) - 2))
+						switch t2 := frm.Last().Car().(type) {
+						case nil:
+							Nth(frm, -2).SetCdr(nil)
+						case Lister:
+							Nth(frm, -2).SetCdr(t2)
+						default:
+							Assert(false, "WTF! Last argument to lt' must be a list")
+						}
+						Ret(Nth(frm, 2))
 					}
 				case "?'":
 					// ?', if part, then part, ret
@@ -259,7 +281,7 @@ func Nth(ls Lister, n int) Lister {
 		return Nth(ls.Cdr(), n-1)
 	}
 	if n < 0 {
-		return Nth(ls, Len(ls)-n)
+		return Nth(ls, Len(ls)+n)
 	}
 	return ls
 }
