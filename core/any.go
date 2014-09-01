@@ -134,6 +134,27 @@ func Run() {
 						fmt.Print("'1 ")
 						Ret(exp.Cdr().Car())
 					}
+				case ":^'", ":>'", ":|'":
+					if exp.Cdr() == nil {
+						fmt.Print(":0 ")
+						Ret(nil)
+					} else if !HasArg(1) {
+						fmt.Print(":1 ")
+						C_ = &List{&List{exp.Cdr().Car(), nil}, C_}
+					} else if Arg(1) == nil {
+						fmt.Print(":2 ")
+						Ret(nil)
+					} else { // TODO: better error message if not a list
+						fmt.Print(":3 ")
+						switch t {
+						case ":^'":
+							Ret(ArgL(1).Car())
+						case ":>'":
+							Ret(ArgL(1).Cdr())
+						case ":|'":
+							Ret(ArgL(1).Last())
+						}
+					}
 				case "?'":
 					// ?', if part, then part, ret
 					// ?', then part, nil, ret
@@ -170,9 +191,12 @@ func Run() {
 					} else if !HasArg(1) {
 						fmt.Print("pr1 ")
 						C_ = &List{&List{exp.Cdr().Car(), nil}, C_}
-					} else {
+					} else if Arg(1) == nil {
 						fmt.Print("pr2 ")
-						s := make([]uint8, Len(ArgL(1)))
+						Ret(nil)
+					} else {
+						fmt.Print("pr3 ")
+						s := make([]uint8, Len(ArgL(1))) // TODO: better error message if not a list
 						for i, arg := 0, ArgL(1); arg != nil; i, arg = i+1, arg.Cdr() {
 							c, ok := arg.Car().(Inter)
 							Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
