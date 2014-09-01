@@ -76,25 +76,14 @@ func Parse(code string) {
 
 func Run() {
 	for C_ != nil {
-		frm, ok := C_.Car().(Lister)
+		f, ok := C_.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
-		HasArg := func(n int) bool {
-			return Nth(frm, n-1).Cdr() != nil
-		}
-		Arg := func(n int) interface{} {
-			return Nth(frm, n).Car()
-		}
-		ArgL := func(n int) Lister {
-			arg, ok := Arg(n).(Lister)
-			Assert(ok, fmt.Sprintf("WTF! Stack frame argument %d isn't a list", n))
-			return arg
-		}
-		exp, ok := frm.Car().(Lister)
+		e, ok := f.Car().(Lister)
 		if !ok {
 			fmt.Print("0 ")
-			Ret(frm.Car())
+			Ret(f.Car())
 		} else {
-			switch t := exp.Car().(type) {
+			switch t := e.Car().(type) {
 			case nil:
 				Assert(false, "WTF! Can't call the empty list")
 			case Inter:
@@ -102,126 +91,125 @@ func Run() {
 			case Lister:
 				Assert(false, "WTF! Can't call a list")
 				// I kind of like the behavior below, but it causes strange error messages if there's a bug
-				/*if frm.Cdr() == nil {
+				/*if f.Cdr() == nil {
 					fmt.Println("a")
 					C_ = &List{&List{t, nil}, C_}
 				} else {
 					fmt.Println("b")
-					frm.SetCar(frm.Cdr().Car())
+					f.SetCar(f.Cdr().Car())
 				}*/
 			case string:
 				switch t {
 				case "sx'": // sx', arg, ret
-					if exp.Cdr() == nil {
+					if e.Cdr() == nil {
 						fmt.Print("{0 ")
 						Ret(nil)
-					} else if !HasArg(1) {
+					} else if f.Cdr() == nil {
 						fmt.Print("{1 ")
-						frm.SetCdr(&List{exp.Cdr(), nil})
-					} else if Arg(1) != nil {
+						f.SetCdr(&List{e.Cdr(), nil})
+					} else if f.Cdr().Car() != nil {
 						fmt.Print("{2 ")
-						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
-						frm.SetCdr(&List{ArgL(1).Cdr(), nil})
+						C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
+						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
 						fmt.Print("{3 ")
-						Ret(Arg(2))
+						Ret(NCar(f, 2))
 					}
 				case "q'":
 					fmt.Print("' ")
-					Assert(exp.Cdr() != nil, "WTF! Missing argument to quote")
-					Ret(exp.Cdr().Car())
+					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
+					Ret(e.Cdr().Car())
 				case ":^'", ":>'", ":|'": // op, ret
-					if !HasArg(1) {
+					if f.Cdr() == nil {
 						fmt.Print(":1 ")
-						Assert(exp.Cdr() != nil, "WTF! Missing argument to "+t)
-						C_ = &List{&List{exp.Cdr().Car(), nil}, C_}
-					} else if Arg(1) == nil {
+						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t)
+						C_ = &List{&List{e.Cdr().Car(), nil}, C_}
+					} else if f.Cdr().Car() == nil {
 						fmt.Print(":2 ")
 						Ret(nil)
-					} else { // TODO: better error message if not a list
+					} else {
 						fmt.Print(":3 ")
+						arg := NCarLA(f, 1, "WTF! "+t+" takes a list")
 						switch t {
 						case ":^'":
-							Ret(ArgL(1).Car())
+							Ret(arg.Car())
 						case ":>'":
-							Ret(ArgL(1).Cdr())
+							Ret(arg.Cdr())
 						case ":|'":
-							Ret(ArgL(1).Last())
+							Ret(arg.Last())
 						}
 					}
 				case "lt'": // lt', args...
-					if exp.Cdr() == nil {
+					if e.Cdr() == nil {
 						fmt.Print("lt0 ")
 						Ret(nil)
-					} else if !HasArg(1) {
+					} else if f.Cdr() == nil {
 						fmt.Print("lt1 ")
-						frm.SetCdr(&List{exp.Cdr(), nil})
-					} else if Arg(1) != nil {
+						f.SetCdr(&List{e.Cdr(), nil})
+					} else if f.Cdr().Car() != nil {
 						fmt.Print("lt2 ")
-						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
-						frm.Cdr().SetCar(ArgL(1).Cdr())
+						C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
+						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						fmt.Print("lt3 ")
-						switch t2 := frm.Last().Car().(type) {
+						switch t2 := f.Last().Car().(type) {
 						case nil:
-							Nth(frm, -2).SetCdr(nil)
+							NCdr(f, -2).SetCdr(nil)
 						case Lister:
-							Nth(frm, -2).SetCdr(t2)
+							NCdr(f, -2).SetCdr(t2)
 						default:
 							Assert(false, "WTF! Last argument to lt' must be a list")
 						}
-						Ret(Nth(frm, 2))
+						Ret(NCdr(f, 2))
 					}
 				case "?'":
 					// ?', if part, then part, ret
 					// ?', then part, nil, ret
-					if exp.Cdr() == nil {
+					if e.Cdr() == nil {
 						fmt.Print("?0 ")
 						Ret(nil)
-					} else if !HasArg(1) {
+					} else if NCdr(f, 1) == nil {
 						fmt.Print("?1 ")
-						frm.SetCdr(&List{exp.Cdr(), &List{exp.Cdr().Cdr(), nil}})
-					} else if !HasArg(3) {
+						f.SetCdr(&List{e.Cdr(), &List{e.Cdr().Cdr(), nil}})
+					} else if NCdr(f, 3) == nil {
 						fmt.Print("?2 ")
-						C_ = &List{&List{ArgL(1).Car(), nil}, C_}
+						C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
+					} else if NCar(f, 2) == nil {
+						fmt.Print("?3 ")
+						Ret(NCar(f, 3))
+					} else if NCar(f, 3) != nil {
+						fmt.Print("?4 ")
+						f.SetCdr(&List{NCarL(f, 1).Cdr(), &List{nil, nil}})
+					} else if NCarL(f, 2).Cdr() == nil {
+						fmt.Print("?5 ")
+						Ret(nil)
 					} else {
-						if Arg(2) == nil {
-							fmt.Print("?3 ")
-							Ret(Arg(3))
-						} else if Arg(3) != nil {
-							fmt.Print("?4 ")
-							frm.SetCdr(&List{ArgL(1).Cdr(), &List{nil, nil}})
-						} else if ArgL(2).Cdr() == nil {
-							fmt.Print("?5 ")
-							Ret(nil)
-						} else {
-							fmt.Print("?6 ")
-							frm.SetCdr(&List{ArgL(2).Cdr(), &List{ArgL(2).Cdr().Cdr(), nil}})
-						}
+						fmt.Print("?6 ")
+						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
 				case "pr'":
 					// pr', ret
 					// TODO: print all arguments
-					if exp.Cdr() == nil {
+					if e.Cdr() == nil {
 						fmt.Print("pr0 ")
 						Ret(nil)
-					} else if !HasArg(1) {
+					} else if f.Cdr() == nil {
 						fmt.Print("pr1 ")
-						C_ = &List{&List{exp.Cdr().Car(), nil}, C_}
-					} else if Arg(1) == nil {
+						C_ = &List{&List{e.Cdr().Car(), nil}, C_}
+					} else if f.Cdr().Car() == nil {
 						fmt.Print("pr2 ")
 						Ret(nil)
 					} else {
 						fmt.Print("pr3 ")
-						s := make([]uint8, Len(ArgL(1))) // TODO: better error message if not a list
-						for i, arg := 0, ArgL(1); arg != nil; i, arg = i+1, arg.Cdr() {
+						s := make([]uint8, Len(NCarLA(f, 1, "WTF! pr' takes a string")))
+						for i, arg := 0, NCarL(f, 1); arg != nil; i, arg = i+1, arg.Cdr() {
 							c, ok := arg.Car().(Inter)
 							Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
 								"WTF! pr' takes a string")
 							s[i] = uint8(c.Int64())
 						}
 						fmt.Print(string(s))
-						Ret(Arg(1))
+						Ret(f.Cdr().Car())
 					}
 				default:
 					Assert(false, "WTF! Can't call undefined function \""+t+"\"")
@@ -270,15 +258,31 @@ func Len(ls Lister) int {
 	return Len(ls.Cdr()) + 1
 }
 
-func Nth(ls Lister, n int) Lister {
+func NCar(ls Lister, n int) interface{} {
+	nCdr := NCdr(ls, n)
+	Assert(nCdr != nil, "WTF! Out of bounds when calling :'")
+	return nCdr.Car()
+}
+
+func NCarL(ls Lister, n int) Lister {
+	return NCarLA(ls, n, "WTF! Requested list element isn't a list")
+}
+
+func NCarLA(ls Lister, n int, msg string) Lister {
+	nCar, ok := NCar(ls, n).(Lister)
+	Assert(ok, msg)
+	return nCar
+}
+
+func NCdr(ls Lister, n int) Lister {
 	if ls == nil {
 		return nil
 	}
 	if n > 0 {
-		return Nth(ls.Cdr(), n-1)
+		return NCdr(ls.Cdr(), n-1)
 	}
 	if n < 0 {
-		return Nth(ls, Len(ls)+n)
+		return NCdr(ls, Len(ls)+n)
 	}
 	return ls
 }
