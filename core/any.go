@@ -20,6 +20,7 @@ type List struct {
 }
 
 type Inter interface {
+	Add(x, y *big.Int) *big.Int
 	Cmp(y *big.Int) (r int)
 	Int64() int64
 }
@@ -180,8 +181,23 @@ func Run() {
 						fmt.Print("?6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
-				case "pr'":
-					// pr', arg, ret...
+				case "+'": // +', arg, sum, ret
+					if f.Cdr() == nil {
+						fmt.Print("+0 ")
+						f.SetCdr(&List{e.Cdr(), &List{big.NewInt(0), nil}})
+					} else if NCdr(f, 3) != nil {
+						fmt.Print("+1 ")
+						NCarI(f, 2).Add(NCarI(f, 2), NCarIA(f, 3, "WTF! +' takes numbers"))
+						f.Cdr().Cdr().SetCdr(nil)
+					} else if f.Cdr().Car() != nil {
+						fmt.Print("+2 ")
+						C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
+						f.Cdr().SetCar(NCarL(f, 1).Cdr())
+					} else {
+						fmt.Print("+3 ")
+						Ret(NCar(f, 2))
+					}
+				case "pr'": // pr', arg, ret...
 					if e.Cdr() == nil {
 						fmt.Print("pr0 ")
 						Ret(nil)
@@ -269,6 +285,16 @@ func NCarL(ls Lister, n int) Lister {
 
 func NCarLA(ls Lister, n int, msg string) Lister {
 	nCar, ok := NCar(ls, n).(Lister)
+	Assert(ok, msg)
+	return nCar
+}
+
+func NCarI(ls Lister, n int) *big.Int {
+	return NCarIA(ls, n, "WTF! Requested list element isn't an int")
+}
+
+func NCarIA(ls Lister, n int, msg string) *big.Int {
+	nCar, ok := NCar(ls, n).(*big.Int)
 	Assert(ok, msg)
 	return nCar
 }
