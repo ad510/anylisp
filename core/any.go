@@ -120,14 +120,14 @@ func Run() {
 					Ret(e.Cdr().Car())
 				case ":^'", ":>'", ":|'": // op, ret
 					if f.Cdr() == nil {
-						fmt.Print(":1 ")
+						fmt.Print(":0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t)
 						C_ = &List{&List{e.Cdr().Car(), nil}, C_}
 					} else if f.Cdr().Car() == nil {
-						fmt.Print(":2 ")
+						fmt.Print(":1 ")
 						Ret(nil)
 					} else {
-						fmt.Print(":3 ")
+						fmt.Print(":2 ")
 						arg := NCarLA(f, 1, "WTF! "+t+" takes a list")
 						switch t {
 						case ":^'":
