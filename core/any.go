@@ -102,19 +102,16 @@ func Run() {
 			case string:
 				switch t {
 				case "sx'": // sx', arg, ret
-					if e.Cdr() == nil {
+					if f.Cdr() == nil {
 						fmt.Print("{0 ")
-						Ret(nil)
-					} else if f.Cdr() == nil {
-						fmt.Print("{1 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
-						fmt.Print("{2 ")
+						fmt.Print("{1 ")
 						C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
-						fmt.Print("{3 ")
-						Ret(NCar(f, 2))
+						fmt.Print("{2 ")
+						Ret(f.Last().Car())
 					}
 				case "q'":
 					fmt.Print("' ")
@@ -141,18 +138,15 @@ func Run() {
 						}
 					}
 				case "lt'": // lt', arg, ret...
-					if e.Cdr() == nil {
+					if f.Cdr() == nil {
 						fmt.Print("lt0 ")
-						Ret(nil)
-					} else if f.Cdr() == nil {
-						fmt.Print("lt1 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
-						fmt.Print("lt2 ")
+						fmt.Print("lt1 ")
 						C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
-						fmt.Print("lt3 ")
+						fmt.Print("lt2 ")
 						SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to lt' must be a list")
 						Ret(NCdr(f, 2))
 					}
@@ -198,23 +192,20 @@ func Run() {
 						Ret(NCar(f, 2))
 					}
 				case "pr'": // pr', arg, ret...
-					if e.Cdr() == nil {
+					if f.Cdr() == nil {
 						fmt.Print("pr0 ")
-						Ret(nil)
-					} else if f.Cdr() == nil {
-						fmt.Print("pr1 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else {
 						if f.Cdr().Cdr() != nil {
-							fmt.Print("pr2 ")
+							fmt.Print("pr1 ")
 							SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! pr' takes a string")
 						}
 						if f.Cdr().Car() != nil {
-							fmt.Print("pr3 ")
+							fmt.Print("pr2 ")
 							C_ = &List{&List{NCarL(f, 1).Car(), nil}, C_}
 							f.Cdr().SetCar(NCarL(f, 1).Cdr())
 						} else {
-							fmt.Print("pr4 ")
+							fmt.Print("pr3 ")
 							s := make([]uint8, Len(f.Cdr().Cdr()))
 							for i, arg := 0, f.Cdr().Cdr(); arg != nil; i, arg = i+1, arg.Cdr() {
 								c, ok := arg.Car().(Inter)
