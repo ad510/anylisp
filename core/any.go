@@ -23,6 +23,7 @@ type Inter interface {
 	Add(x, y *big.Int) *big.Int
 	Cmp(y *big.Int) (r int)
 	Int64() int64
+	Mul(x, y *big.Int) *big.Int
 }
 
 var (
@@ -175,13 +176,23 @@ func Run() {
 						fmt.Print("?6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
-				case "+'": // +', arg, sum, ret
+				case "+'", "*'": // op, arg, sum, ret
 					if f.Cdr() == nil {
 						fmt.Print("+0 ")
-						f.SetCdr(&List{e.Cdr(), &List{big.NewInt(0), nil}})
+						var bi *big.Int
+						if t == "+'" {
+							bi = big.NewInt(0)
+						} else if t == "*'" {
+							bi = big.NewInt(1)
+						}
+						f.SetCdr(&List{e.Cdr(), &List{bi, nil}})
 					} else if NCdr(f, 3) != nil {
 						fmt.Print("+1 ")
-						NCarI(f, 2).Add(NCarI(f, 2), NCarIA(f, 3, "WTF! +' takes numbers"))
+						if t == "+'" {
+							NCarI(f, 2).Add(NCarI(f, 2), NCarIA(f, 3, "WTF! +' takes numbers"))
+						} else if t == "*'" {
+							NCarI(f, 2).Mul(NCarI(f, 2), NCarIA(f, 3, "WTF! *' takes numbers"))
+						}
 						f.Cdr().Cdr().SetCdr(nil)
 					} else if f.Cdr().Car() != nil {
 						fmt.Print("+2 ")
