@@ -37,14 +37,21 @@ func Parse(code string) {
 	Ps_ = &List{TempRoot, nil}
 	C_ = &List{&List{TempRoot, nil}, nil}
 	tok := ""
+	cm := false
 	for i := 0; i < len(code); i++ {
 		if code[i] == ' ' || code[i] == '\t' || code[i] == '\n' {
-			if tok == ")" {
+			if cm {
+				if tok == "'#" { // end comment
+					cm = false
+				}
+			} else if tok == "#'" { // begin comment
+				cm = true
+			} else if tok == ")" { // end list
 				Assert(Ps_.Cdr() != nil, "Parse WTF! Too many )s")
 				Ps_ = Ps_.Cdr()
 			} else if len(tok) > 0 {
 				var ls Lister
-				if tok == "(" { // list
+				if tok == "(" { // begin list
 					ls = &List{nil, nil}
 				} else if tok[0] == '[' && tok[len(tok)-1] == ']' { // number
 					for j := 1; j < len(tok)-1; j++ {
