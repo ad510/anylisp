@@ -89,7 +89,7 @@ func Parse(code string) {
 					case *Set:
 						(*t2)[ls] = true
 					default:
-						Assert(false, "Parse WTF! Bad stack (probably an interpreter bug)")
+						Panic("Parse WTF! Bad stack (probably an interpreter bug)")
 					}
 					Ps_.SetCar(ls)
 				case Lister:
@@ -100,7 +100,7 @@ func Parse(code string) {
 						(*t)[a] = true
 					}
 				default:
-					Assert(false, "Parse WTF! Bad stack (probably an interpreter bug)")
+					Panic("Parse WTF! Bad stack (probably an interpreter bug)")
 				}
 				if tok == "(" {
 					Ps_ = &List{nil, Ps_}
@@ -124,13 +124,13 @@ func Run() {
 		case Lister:
 			switch t := e.Car().(type) {
 			case nil:
-				Assert(false, "WTF! Can't call the empty list")
+				Panic("WTF! Can't call the empty list")
 			case Inter:
-				Assert(false, "WTF! Can't call an int")
+				Panic("WTF! Can't call an int")
 			case Lister:
-				Assert(false, "WTF! Can't call a list")
+				Panic("WTF! Can't call a list")
 			case *Set:
-				Assert(false, "WTF! Can't call a set")
+				Panic("WTF! Can't call a set")
 			case string:
 				switch t {
 				case "sx'": // sx', arg, ret
@@ -260,13 +260,13 @@ func Run() {
 						}
 					}
 				default:
-					Assert(false, "WTF! Can't call undefined function \""+t+"\"")
+					Panic("WTF! Can't call undefined function \""+t+"\"")
 				}
 			default:
-				Assert(false, "WTF! Unrecognized function type (probably an interpreter bug)")
+				Panic("WTF! Unrecognized function type (probably an interpreter bug)")
 			}
 		case *Set:
-			Assert(false, "TODO: evaluate the set")
+			Panic("TODO: evaluate the set")
 		default:
 			fmt.Print("0 ")
 			Ret(f.Car())
@@ -296,7 +296,7 @@ func PrintTree(ls interface{}) {
 	case string:
 		fmt.Print(t + " ")
 	default:
-		Assert(false, "Unrecognized object in tree")
+		Panic("Unrecognized object in tree")
 	}
 }
 
@@ -363,7 +363,7 @@ func SetCdrA(ls Lister, v interface{}, msg string) Lister {
 	case Lister:
 		return ls.SetCdr(t)
 	}
-	Assert(false, msg)
+	Panic(msg)
 	return nil
 }
 
@@ -394,7 +394,11 @@ func (ls *List) Last() Lister {
 
 func Assert(cond bool, msg string) {
 	if !cond {
-		fmt.Println(msg)
-		os.Exit(2)
+		Panic(msg)
 	}
+}
+
+func Panic(msg string) {
+	fmt.Println(msg)
+	os.Exit(2)
 }
