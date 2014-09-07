@@ -19,6 +19,8 @@ type List struct {
 	cdr Lister
 }
 
+type Set map[interface{}]bool
+
 type Inter interface {
 	Add(x, y *big.Int) *big.Int
 	Cmp(y *big.Int) (r int)
@@ -41,18 +43,36 @@ func Parse(code string) {
 	for i := 0; i < len(code); i++ {
 		if code[i] == ' ' || code[i] == '\t' || code[i] == '\n' {
 			if cm {
-				if tok == "'#" { // end comment
+				if tok == "'#" {
 					cm = false
 				}
-			} else if tok == "#'" { // begin comment
+			} else if tok == "#'" {
 				cm = true
-			} else if tok == ")" { // end list
-				Assert(Ps_.Cdr() != nil, "Parse WTF! Too many )s")
+			} else if tok == ")" {
+				if Ps_.Car() != nil {
+					_, ok := Ps_.Car().(Lister)
+					Assert(ok, "Parse WTF! Unexpected )")
+				}
 				Ps_ = Ps_.Cdr()
+				Assert(Ps_ != nil, "Parse WTF! Too many )s")
+				if Ps_.Cdr() != nil {
+					set, ok := Ps_.Cdr().Car().(*Set)
+					if ok {
+						(*set)[Ps_.Car().(Lister).Car()] = true
+						Ps_ = Ps_.Cdr()
+					}
+				}
+			} else if tok == "]" {
+				_, ok := Ps_.Car().(*Set)
+				Assert(ok, "Parse WTF! Unexpected ]")
+				Ps_ = Ps_.Cdr()
+				Assert(Ps_ != nil, "Parse WTF! Too many ]s")
 			} else if len(tok) > 0 {
-				var ls Lister
-				if tok == "(" { // begin list
-					ls = &List{nil, nil}
+				var a interface{}
+				if tok == "(" {
+					a = nil
+				} else if tok == "[" {
+					a = &Set{}
 				} else if tok[0] == '[' && tok[len(tok)-1] == ']' { // number
 					for j := 1; j < len(tok)-1; j++ {
 						Assert(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f'),
@@ -61,18 +81,31 @@ func Parse(code string) {
 					bi := new(big.Int)
 					_, err := fmt.Sscanf(tok[1:len(tok)-1], "%x", bi)
 					Assert(err == nil, "Parse WTF! Bad number")
-					ls = &List{bi, nil}
+					a = bi
 				} else { // symbol
-					ls = &List{tok, nil}
+					a = tok
 				}
-				if Ps_.Car() == nil {
+				ls := &List{a, nil}
+				switch t := Ps_.Car().(type) {
+				case nil:
 					Ps_.Cdr().Car().(Lister).SetCar(ls) // 1st token in list
-				} else {
-					Ps_.Car().(Lister).SetCdr(ls)
+					Ps_.SetCar(ls)
+				case Lister:
+					t.SetCdr(ls)
+					Ps_.SetCar(ls)
+				case *Set:
+					if tok == "(" {
+						// don't yet know whether will insert empty list or list element,
+						// so build up the list first then insert it later
+						Ps_ = &List{&List{nil, nil}, Ps_}
+					} else {
+						(*t)[a] = true
+					}
 				}
-				Ps_.SetCar(ls)
 				if tok == "(" {
 					Ps_ = &List{nil, Ps_}
+				} else if tok == "[" {
+					Ps_ = &List{a, Ps_}
 				}
 			}
 			tok = ""
@@ -87,11 +120,8 @@ func Run() {
 	for C_ != nil {
 		f, ok := C_.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
-		e, ok := f.Car().(Lister)
-		if !ok {
-			fmt.Print("0 ")
-			Ret(f.Car())
-		} else {
+		switch e := f.Car().(type) {
+		case Lister:
 			switch t := e.Car().(type) {
 			case nil:
 				Assert(false, "WTF! Can't call the empty list")
@@ -107,6 +137,8 @@ func Run() {
 					fmt.Println("b")
 					f.SetCar(f.Cdr().Car())
 				}*/
+			case *Set:
+				Assert(false, "WTF! Can't call a set")
 			case string:
 				switch t {
 				case "sx'": // sx', arg, ret
@@ -241,6 +273,11 @@ func Run() {
 			default:
 				Assert(false, "WTF! Unrecognized function type (probably an interpreter bug)")
 			}
+		case *Set:
+			Assert(false, "TODO: evaluate the set")
+		default:
+			fmt.Print("0 ")
+			Ret(f.Car())
 		}
 	}
 }
@@ -258,6 +295,12 @@ func PrintTree(ls interface{}) {
 			ls = ls.(Lister).Cdr()
 		}
 		fmt.Print(") ")
+	case *Set:
+		fmt.Print("[ ")
+		for e := range *t {
+			PrintTree(e)
+		}
+		fmt.Print("] ")
 	case string:
 		fmt.Print(t + " ")
 	default:
