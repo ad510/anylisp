@@ -129,14 +129,6 @@ func Run() {
 				Assert(false, "WTF! Can't call an int")
 			case Lister:
 				Assert(false, "WTF! Can't call a list")
-				// I kind of like the behavior below, but it causes strange error messages if there's a bug
-				/*if f.Cdr() == nil {
-					fmt.Println("a")
-					C_ = &List{&List{t, nil}, C_}
-				} else {
-					fmt.Println("b")
-					f.SetCar(f.Cdr().Car())
-				}*/
 			case *Set:
 				Assert(false, "WTF! Can't call a set")
 			case string:
