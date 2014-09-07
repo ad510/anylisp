@@ -49,24 +49,19 @@ func Parse(code string) {
 			} else if tok == "#'" {
 				cm = true
 			} else if tok == ")" {
+				Assert(Ps_.Cdr() != nil, "Parse WTF! Too many )s")
 				if Ps_.Car() != nil {
 					_, ok := Ps_.Car().(Lister)
 					Assert(ok, "Parse WTF! Unexpected )")
+				} else if set, ok := Ps_.Cdr().Car().(*Set); ok {
+					(*set)[nil] = true
 				}
 				Ps_ = Ps_.Cdr()
-				Assert(Ps_ != nil, "Parse WTF! Too many )s")
-				if Ps_.Cdr() != nil {
-					set, ok := Ps_.Cdr().Car().(*Set)
-					if ok {
-						(*set)[Ps_.Car().(Lister).Car()] = true
-						Ps_ = Ps_.Cdr()
-					}
-				}
 			} else if tok == "]" {
+				Assert(Ps_.Cdr() != nil, "Parse WTF! Too many ]s")
 				_, ok := Ps_.Car().(*Set)
 				Assert(ok, "Parse WTF! Unexpected ]")
 				Ps_ = Ps_.Cdr()
-				Assert(Ps_ != nil, "Parse WTF! Too many ]s")
 			} else if len(tok) > 0 {
 				var a interface{}
 				if tok == "(" {
@@ -88,19 +83,24 @@ func Parse(code string) {
 				ls := &List{a, nil}
 				switch t := Ps_.Car().(type) {
 				case nil:
-					Ps_.Cdr().Car().(Lister).SetCar(ls) // 1st token in list
+					switch t2 := Ps_.Cdr().Car().(type) {
+					case Lister:
+						t2.SetCar(ls) // 1st token in list
+					case *Set:
+						(*t2)[ls] = true
+					default:
+						Assert(false, "Parse WTF! Bad stack (probably an interpreter bug)")
+					}
 					Ps_.SetCar(ls)
 				case Lister:
 					t.SetCdr(ls)
 					Ps_.SetCar(ls)
 				case *Set:
-					if tok == "(" {
-						// don't yet know whether will insert empty list or list element,
-						// so build up the list first then insert it later
-						Ps_ = &List{&List{nil, nil}, Ps_}
-					} else {
+					if tok != "(" {
 						(*t)[a] = true
 					}
+				default:
+					Assert(false, "Parse WTF! Bad stack (probably an interpreter bug)")
 				}
 				if tok == "(" {
 					Ps_ = &List{nil, Ps_}
