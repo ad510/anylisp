@@ -26,6 +26,7 @@ type Inter interface {
 	Cmp(y *big.Int) (r int)
 	Int64() int64
 	Mul(x, y *big.Int) *big.Int
+	Sign() int
 	Sub(x, y *big.Int) *big.Int
 }
 
@@ -200,7 +201,7 @@ func Run() {
 						Ret(NCar(f, 3))
 					} else if NCar(f, 3) != nil {
 						fmt.Print("?4 ")
-						f.SetCdr(&List{NCarL(f, 1).Cdr(), &List{nil, nil}})
+						f.SetCdr(&List{NCarL(f, 1).Cdr(), &List{}})
 					} else if NCarL(f, 2).Cdr() == nil {
 						fmt.Print("?5 ")
 						Ret(nil)
@@ -231,7 +232,7 @@ func Run() {
 						} else if t == "//'" {
 							Assert(y.Sign() != 0, "WTF! Int division by 0")
 							// this does Euclidean division (like Python and unlike C), and I like that
-							NCdr(f, 2).SetCar(big.NewInt(0).Div(x, y))
+							NCdr(f, 2).SetCar(new(big.Int).Div(x, y))
 						}
 						f.Cdr().Cdr().SetCdr(nil)
 					} else if f.Cdr().Car() != nil {
@@ -261,7 +262,7 @@ func Run() {
 							s := make([]uint8, Len(f.Cdr().Cdr()))
 							for i, arg := 0, f.Cdr().Cdr(); arg != nil; i, arg = i+1, arg.Cdr() {
 								c, ok := arg.Car().(Inter)
-								Assert(ok && c.Cmp(big.NewInt(-1)) == 1 && c.Cmp(big.NewInt(256)) == -1,
+								Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1,
 									"WTF! Bad byte passed to pr'")
 								s[i] = uint8(c.Int64())
 							}
