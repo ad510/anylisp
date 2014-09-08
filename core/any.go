@@ -26,6 +26,7 @@ type Inter interface {
 	Cmp(y *big.Int) (r int)
 	Int64() int64
 	Mul(x, y *big.Int) *big.Int
+	Sub(x, y *big.Int) *big.Int
 }
 
 var (
@@ -207,22 +208,30 @@ func Run() {
 						fmt.Print("?6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
-				case "+'", "*'": // op, arg, sum, ret
+				case "+'", "-'", "*'", "//'": // op, arg, sum, ret
 					if f.Cdr() == nil {
 						fmt.Print("+0 ")
-						var bi *big.Int
+						var cdr Lister
 						if t == "+'" {
-							bi = big.NewInt(0)
+							cdr = &List{big.NewInt(0), nil}
 						} else if t == "*'" {
-							bi = big.NewInt(1)
+							cdr = &List{big.NewInt(1), nil}
 						}
-						f.SetCdr(&List{e.Cdr(), &List{bi, nil}})
+						f.SetCdr(&List{e.Cdr(), cdr})
 					} else if NCdr(f, 3) != nil {
 						fmt.Print("+1 ")
+						x := NCarI(f, 2)
+						y := NCarIA(f, 3, "WTF! "+t+" takes numbers")
 						if t == "+'" {
-							NCarI(f, 2).Add(NCarI(f, 2), NCarIA(f, 3, "WTF! +' takes numbers"))
+							NCarI(f, 2).Add(x, y)
+						} else if t == "-'" {
+							NCdr(f, 2).SetCar(big.NewInt(0).Sub(x, y))
 						} else if t == "*'" {
-							NCarI(f, 2).Mul(NCarI(f, 2), NCarIA(f, 3, "WTF! *' takes numbers"))
+							NCarI(f, 2).Mul(x, y)
+						} else if t == "//'" {
+							Assert(y.Sign() != 0, "WTF! Int division by 0")
+							// this does Euclidean division (like Python and unlike C), and I like that
+							NCdr(f, 2).SetCar(big.NewInt(0).Div(x, y))
 						}
 						f.Cdr().Cdr().SetCdr(nil)
 					} else if f.Cdr().Car() != nil {
@@ -231,6 +240,7 @@ func Run() {
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						fmt.Print("+3 ")
+						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+t)
 						Ret(NCar(f, 2))
 					}
 				case "pr'": // pr', arg, ret...
