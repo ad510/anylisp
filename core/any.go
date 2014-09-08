@@ -70,13 +70,16 @@ func Parse(code string) {
 					a = nil
 				} else if tok == "[" {
 					a = &Set{}
-				} else if tok[0] == '[' && tok[len(tok)-1] == ']' { // number
-					for j := 1; j < len(tok)-1; j++ {
-						Assert(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f'),
-							"Parse WTF! Bad character in number")
+				} else if tok[0] == '\'' && len(tok) > 1 && func() bool {
+					for j := 1; j < len(tok); j++ {
+						if !(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f')) {
+							return false
+						}
 					}
+					return true
+				}() { // number
 					bi := new(big.Int)
-					_, err := fmt.Sscanf(tok[1:len(tok)-1], "%x", bi)
+					_, err := fmt.Sscanf(tok[1:len(tok)], "%x", bi)
 					Assert(err == nil, "Parse WTF! Bad number")
 					a = bi
 				} else { // symbol
@@ -290,7 +293,7 @@ func PrintTree(ls interface{}) {
 	case nil:
 		fmt.Print("( ) ")
 	case Inter:
-		fmt.Printf("[%x] ", t)
+		fmt.Printf("'%x ", t)
 	case Lister:
 		fmt.Print("( ")
 		for ls != nil {
