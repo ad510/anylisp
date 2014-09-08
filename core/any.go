@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 )
 
 type Lister interface {
@@ -43,7 +44,11 @@ func Parse(code string) {
 	tok := ""
 	cm := false
 	for i := 0; i < len(code); i++ {
-		if code[i] == ' ' || code[i] == '\t' || code[i] == '\n' {
+		if strings.IndexByte(" \t\n", code[i]) == -1 {
+			tok += string(code[i])
+		}
+		if strings.IndexByte(" \t\n()[]", code[i]) != -1 ||
+			(i+1 < len(code) && strings.IndexByte("()[]", code[i+1]) != -1) {
 			if cm {
 				if tok == "'#" {
 					cm = false
@@ -114,8 +119,6 @@ func Parse(code string) {
 				}
 			}
 			tok = ""
-		} else {
-			tok += string(code[i])
 		}
 	}
 	Assert(Ps_.Cdr() == nil, "Parse WTF! Too few )s")
@@ -291,22 +294,22 @@ func Run() {
 func PrintTree(ls interface{}) {
 	switch t := ls.(type) {
 	case nil:
-		fmt.Print("( ) ")
+		fmt.Print("()")
 	case Inter:
 		fmt.Printf("'%x ", t)
 	case Lister:
-		fmt.Print("( ")
+		fmt.Print("(")
 		for ls != nil {
 			PrintTree(ls.(Lister).Car())
 			ls = ls.(Lister).Cdr()
 		}
-		fmt.Print(") ")
+		fmt.Print(")")
 	case *Set:
-		fmt.Print("[ ")
+		fmt.Print("[")
 		for e := range *t {
 			PrintTree(e)
 		}
-		fmt.Print("] ")
+		fmt.Print("]")
 	case string:
 		fmt.Print(t + " ")
 	default:
