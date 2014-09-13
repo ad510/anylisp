@@ -49,10 +49,25 @@ type (
 var (
 	P        Lister
 	C        Lister
+	E        Lister
 	TempRoot Lister
 )
 
 func Parse(code string) {
+	E = &List{&Set{ // TODO: store values directly in cdr
+		&List{OpSx{}.String(), &List{OpSx{}, nil}}: true,
+		&List{OpQ{}.String(), &List{OpQ{}, nil}}: true,
+		&List{OpCar{}.String(), &List{OpCar{}, nil}}: true,
+		&List{OpCdr{}.String(), &List{OpCdr{}, nil}}: true,
+		&List{OpLast{}.String(), &List{OpLast{}, nil}}: true,
+		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
+		&List{OpIf{}.String(), &List{OpIf{}, nil}}: true,
+		&List{OpAdd{}.String(), &List{OpAdd{}, nil}}: true,
+		&List{OpSub{}.String(), &List{OpSub{}, nil}}: true,
+		&List{OpMul{}.String(), &List{OpMul{}, nil}}: true,
+		&List{OpIntDiv{}.String(), &List{OpIntDiv{}, nil}}: true,
+		&List{OpPr{}.String(), &List{OpPr{}, nil}}: true,
+	}, nil}
 	TempRoot = &List{OpSx{}, nil}
 	P = &List{TempRoot, nil}
 	C = &List{&List{TempRoot, nil}, nil}
@@ -90,30 +105,6 @@ func Parse(code string) {
 					a = nil
 				} else if tok == "[" {
 					a = &Set{}
-				} else if tok == (OpSx{}.String()) {
-					a = OpSx{}
-				} else if tok == (OpQ{}.String()) {
-					a = OpQ{}
-				} else if tok == (OpCar{}.String()) {
-					a = OpCar{}
-				} else if tok == (OpCdr{}.String()) {
-					a = OpCdr{}
-				} else if tok == (OpLast{}.String()) {
-					a = OpLast{}
-				} else if tok == (OpLt{}.String()) {
-					a = OpLt{}
-				} else if tok == (OpIf{}.String()) {
-					a = OpIf{}
-				} else if tok == (OpAdd{}.String()) {
-					a = OpAdd{}
-				} else if tok == (OpSub{}.String()) {
-					a = OpSub{}
-				} else if tok == (OpMul{}.String()) {
-					a = OpMul{}
-				} else if tok == (OpIntDiv{}.String()) {
-					a = OpIntDiv{}
-				} else if tok == (OpPr{}.String()) {
-					a = OpPr{}
 				} else if tok[0] == '\'' && len(tok) > 1 && func() bool {
 					for j := 1; j < len(tok); j++ {
 						if !(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f')) {
@@ -168,8 +159,19 @@ func Run() {
 		f, ok := C.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
 		switch e := f.Car().(type) {
+		case string:
+			fmt.Print("e ")
+			v, ok := Lookup(E, e)
+			Assert(ok, "WTF! \"" + e + "\" not defined")
+			Ret(v)
 		case Lister:
-			switch t := e.Car().(type) {
+			op := e.Car()
+			sym, ok := op.(string)
+			if ok {
+				op, ok = Lookup(E, sym)
+				Assert(ok, "WTF! Can't call undefined function \"" + sym + "\"")
+			}
+			switch t := op.(type) {
 			case nil:
 				Panic("WTF! Can't call the empty list")
 			case Inter:
@@ -315,8 +317,6 @@ func Run() {
 						Ret(f.Cdr().Cdr())
 					}
 				}
-			case string:
-				Panic("WTF! Can't call undefined function \"" + t + "\"")
 			default:
 				Panic("WTF! Unrecognized function type (probably an interpreter bug)")
 			}
@@ -362,6 +362,29 @@ func Ret(v interface{}) {
 		C.Cdr().Car().(Lister).Last().SetCdr(&List{v, nil})
 	}
 	C = C.Cdr()
+}
+
+func Lookup(ns interface{}, k string) (interface{}, bool) {
+	switch t := ns.(type) {
+	case Lister:
+		k2, ok := t.Car().(string)
+		if ok && k == k2 {
+			return t.Cdr().Car(), true
+		}
+		v, ok := Lookup(t.Car(), k)
+		if ok {
+			return v, true
+		}
+		return Lookup(t.Cdr(), k)
+	case *Set:
+		for k2 := range *t {
+			v, ok := Lookup(k2, k)
+			if ok {
+				return v, true
+			}
+		}
+	}
+	return nil, false
 }
 
 func Len(ls Lister) int {
