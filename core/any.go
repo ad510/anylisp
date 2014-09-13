@@ -38,6 +38,7 @@ type (
 	OpCdr    struct{}
 	OpLast   struct{}
 	OpLt     struct{}
+	OpSetAdd struct{}
 	OpIf     struct{}
 	OpAdd    struct{}
 	OpSub    struct{}
@@ -61,6 +62,7 @@ func Parse(code string) {
 		&List{OpCdr{}.String(), &List{OpCdr{}, nil}}: true,
 		&List{OpLast{}.String(), &List{OpLast{}, nil}}: true,
 		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
+		&List{OpSetAdd{}.String(), &List{OpSetAdd{}, nil}}: true,
 		&List{OpIf{}.String(), &List{OpIf{}, nil}}: true,
 		&List{OpAdd{}.String(), &List{OpAdd{}, nil}}: true,
 		&List{OpSub{}.String(), &List{OpSub{}, nil}}: true,
@@ -68,6 +70,7 @@ func Parse(code string) {
 		&List{OpIntDiv{}.String(), &List{OpIntDiv{}, nil}}: true,
 		&List{OpPr{}.String(), &List{OpPr{}, nil}}: true,
 	}, nil}
+	(*E.Car().(*Set))[&List{"e'", &List{E, nil}}] = true
 	TempRoot = &List{OpSx{}, nil}
 	P = &List{TempRoot, nil}
 	C = &List{&List{TempRoot, nil}, nil}
@@ -254,7 +257,7 @@ func Run() {
 					fmt.Print("?6 ")
 					f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 				}
-			case OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
+			case OpSetAdd, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 				if f.Cdr() == nil {
 					fmt.Print("+0 ")
 					var cdr Lister
@@ -267,19 +270,25 @@ func Run() {
 					f.SetCdr(&List{e.Cdr(), cdr})
 				} else if NCdr(f, 3) != nil {
 					fmt.Print("+1 ")
-					x := NCarI(f, 2)
-					y := NCarIA(f, 3, "WTF! "+t.(fmt.Stringer).String()+" takes numbers")
 					switch t.(type) {
-					case OpAdd:
-						NCarI(f, 2).Add(x, y)
-					case OpSub:
-						NCdr(f, 2).SetCar(big.NewInt(0).Sub(x, y))
-					case OpMul:
-						NCarI(f, 2).Mul(x, y)
-					case OpIntDiv:
-						Assert(y.Sign() != 0, "WTF! Int division by 0")
-						// this does Euclidean division (like Python and unlike C), and I like that
-						NCdr(f, 2).SetCar(new(big.Int).Div(x, y))
+					case OpSetAdd:
+						x := NCarSA(f, 2, "WTF! First argument to "+t.(fmt.Stringer).String()+" must be a set")
+						(*x)[NCar(f, 3)] = true
+					default:
+						x := NCarIA(f, 2, "WTF! "+t.(fmt.Stringer).String()+" takes numbers")
+						y := NCarIA(f, 3, "WTF! "+t.(fmt.Stringer).String()+" takes numbers")
+						switch t.(type) {
+						case OpAdd:
+							x.Add(x, y)
+						case OpSub:
+							NCdr(f, 2).SetCar(new(big.Int).Sub(x, y))
+						case OpMul:
+							x.Mul(x, y)
+						case OpIntDiv:
+							Assert(y.Sign() != 0, "WTF! Int division by 0")
+							// this does Euclidean division (like Python and unlike C), and I like that
+							NCdr(f, 2).SetCar(new(big.Int).Div(x, y))
+						}
 					}
 					f.Cdr().Cdr().SetCdr(nil)
 				} else if f.Cdr().Car() != nil {
@@ -413,8 +422,10 @@ func NCarLA(ls Lister, n int, msg string) Lister {
 	return nCar
 }
 
-func NCarI(ls Lister, n int) *big.Int {
-	return NCarIA(ls, n, "WTF! Requested list element isn't an int")
+func NCarSA(ls Lister, n int, msg string) *Set {
+	nCar, ok := NCar(ls, n).(*Set)
+	Assert(ok, msg)
+	return nCar
 }
 
 func NCarIA(ls Lister, n int, msg string) *big.Int {
@@ -478,6 +489,7 @@ func (o OpCar) String() string    { return ":^'" }
 func (o OpCdr) String() string    { return ":>'" }
 func (o OpLast) String() string   { return ":|'" }
 func (o OpLt) String() string     { return "lt'" }
+func (o OpSetAdd) String() string { return "$+'" }
 func (o OpIf) String() string     { return "?'" }
 func (o OpAdd) String() string    { return "+'" }
 func (o OpSub) String() string    { return "-'" }
