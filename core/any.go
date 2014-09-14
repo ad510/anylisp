@@ -37,6 +37,8 @@ type (
 	OpCar    struct{}
 	OpCdr    struct{}
 	OpLast   struct{}
+	OpSetCar struct{}
+	OpSetCdr struct{}
 	OpLt     struct{}
 	OpSetAdd struct{}
 	OpIf     struct{}
@@ -61,6 +63,8 @@ func Parse(code string) {
 		&List{OpCar{}.String(), &List{OpCar{}, nil}}: true,
 		&List{OpCdr{}.String(), &List{OpCdr{}, nil}}: true,
 		&List{OpLast{}.String(), &List{OpLast{}, nil}}: true,
+		&List{OpSetCar{}.String(), &List{OpSetCar{}, nil}}: true,
+		&List{OpSetCdr{}.String(), &List{OpSetCdr{}, nil}}: true,
 		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
 		&List{OpSetAdd{}.String(), &List{OpSetAdd{}, nil}}: true,
 		&List{OpIf{}.String(), &List{OpIf{}, nil}}: true,
@@ -219,6 +223,21 @@ func Run() {
 						Ret(arg.Last())
 					}
 				}
+			case OpSetCar, OpSetCdr: // op, dest, src
+				if Len(f) < 3 {
+					fmt.Print("=:^0 ")
+					Assert(Len(e) == 3, "WTF! "+t.(fmt.Stringer).String()+" takes 2 arguments but you gave it "+string(Len(f)-1))
+					C = &List{&List{NCar(e, Len(f)), nil}, C}
+				} else {
+					fmt.Print("=:^1 ")
+					x := NCarLA(f, 1, "WTF! 1st argument to "+t.(fmt.Stringer).String()+" must be a list")
+					switch t.(type) {
+					case OpSetCar:
+						Ret(x.SetCar(NCar(f, 2)))
+					case OpSetCdr:
+						Ret(SetCdrA(x, NCar(f, 2), "WTF! 2nd argument to "+t.(fmt.Stringer).String()+" must be a list"))
+					}
+				}
 			case OpLt: // op, arg, ret...
 				if f.Cdr() == nil {
 					fmt.Print("lt0 ")
@@ -272,7 +291,7 @@ func Run() {
 					fmt.Print("+1 ")
 					switch t.(type) {
 					case OpSetAdd:
-						x := NCarSA(f, 2, "WTF! First argument to "+t.(fmt.Stringer).String()+" must be a set")
+						x := NCarSA(f, 2, "WTF! 1st argument to "+t.(fmt.Stringer).String()+" must be a set")
 						(*x)[NCar(f, 3)] = true
 					default:
 						x := NCarIA(f, 2, "WTF! "+t.(fmt.Stringer).String()+" takes numbers")
@@ -377,14 +396,19 @@ func Lookup(ns interface{}, k string) (interface{}, bool) {
 	switch t := ns.(type) {
 	case Lister:
 		k2, ok := t.Car().(string)
-		if ok && k == k2 {
-			return t.Cdr().Car(), true
-		}
-		v, ok := Lookup(t.Car(), k)
 		if ok {
-			return v, true
+			if k == k2 {
+				return t.Cdr().Car(), true
+			}
+		} else {
+			v, ok := Lookup(t.Car(), k)
+			if ok {
+				return v, true
+			}
+			if t.Cdr() != nil {
+				return Lookup(t.Cdr(), k)
+			}
 		}
-		return Lookup(t.Cdr(), k)
 	case *Set:
 		for k2 := range *t {
 			v, ok := Lookup(k2, k)
@@ -462,6 +486,7 @@ func (ls *List) Car() interface{} {
 	return ls.car
 }
 
+// TODO: should this return ls or v?
 func (ls *List) SetCar(v interface{}) interface{} {
 	ls.car = v
 	return v
@@ -488,6 +513,8 @@ func (o OpQ) String() string      { return "q'" }
 func (o OpCar) String() string    { return ":^'" }
 func (o OpCdr) String() string    { return ":>'" }
 func (o OpLast) String() string   { return ":|'" }
+func (o OpSetCar) String() string { return "=:^'" }
+func (o OpSetCdr) String() string { return "=:>'" }
 func (o OpLt) String() string     { return "lt'" }
 func (o OpSetAdd) String() string { return "$+'" }
 func (o OpIf) String() string     { return "?'" }
