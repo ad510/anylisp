@@ -37,6 +37,8 @@ type (
 	OpCar    struct{}
 	OpCdr    struct{}
 	OpLast   struct{}
+	OpNCar   struct{}
+	OpNCdr   struct{}
 	OpSetCar struct{}
 	OpSetCdr struct{}
 	OpLt     struct{}
@@ -63,6 +65,8 @@ func Parse(code string) {
 		&List{OpCar{}.String(), &List{OpCar{}, nil}}: true,
 		&List{OpCdr{}.String(), &List{OpCdr{}, nil}}: true,
 		&List{OpLast{}.String(), &List{OpLast{}, nil}}: true,
+		&List{OpNCar{}.String(), &List{OpNCar{}, nil}}: true,
+		&List{OpNCdr{}.String(), &List{OpNCdr{}, nil}}: true,
 		&List{OpSetCar{}.String(), &List{OpSetCar{}, nil}}: true,
 		&List{OpSetCdr{}.String(), &List{OpSetCdr{}, nil}}: true,
 		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
@@ -223,15 +227,19 @@ func Run() {
 						Ret(arg.Last())
 					}
 				}
-			case OpSetCar, OpSetCdr: // op, dest, src
+			case OpNCar, OpNCdr, OpSetCar, OpSetCdr: // op, arg1, arg2
 				if Len(f) < 3 {
-					fmt.Print("=:^0 ")
-					Assert(Len(e) == 3, "WTF! "+t.(fmt.Stringer).String()+" takes 2 arguments but you gave it "+string(Len(f)-1))
+					fmt.Print(":@0 ")
+					Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", t.(fmt.Stringer).String(), Len(f)-1))
 					C = &List{&List{NCar(e, Len(f)), nil}, C}
 				} else {
-					fmt.Print("=:^1 ")
+					fmt.Print(":@1 ")
 					x := NCarLA(f, 1, "WTF! 1st argument to "+t.(fmt.Stringer).String()+" must be a list")
 					switch t.(type) {
+					case OpNCar:
+						Ret(NCar(x, int(NCarIA(f, 2, "WTF! 2nd argument to "+t.(fmt.Stringer).String()+" must be an int").Int64())))
+					case OpNCdr:
+						Ret(NCdr(x, int(NCarIA(f, 2, "WTF! 2nd argument to "+t.(fmt.Stringer).String()+" must be an int").Int64())))
 					case OpSetCar:
 						Ret(x.SetCar(NCar(f, 2)))
 					case OpSetCdr:
@@ -326,6 +334,7 @@ func Run() {
 				} else {
 					if f.Cdr().Cdr() != nil {
 						fmt.Print("pr1 ")
+						// TODO: don't do this; this modifies the list in place even if it points into environment
 						SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! "+t.String()+" takes a string")
 					}
 					if f.Cdr().Car() != nil {
@@ -466,7 +475,11 @@ func NCdr(ls Lister, n int) Lister {
 		return NCdr(ls.Cdr(), n-1)
 	}
 	if n < 0 {
-		return NCdr(ls, Len(ls)+n)
+		n2 := Len(ls)+n
+		if n2 < 0 {
+			return nil
+		}
+		return NCdr(ls, n2)
 	}
 	return ls
 }
@@ -513,6 +526,8 @@ func (o OpQ) String() string      { return "q'" }
 func (o OpCar) String() string    { return ":^'" }
 func (o OpCdr) String() string    { return ":>'" }
 func (o OpLast) String() string   { return ":|'" }
+func (o OpNCar) String() string   { return ":'" }
+func (o OpNCdr) String() string   { return ":@'" }
 func (o OpSetCar) String() string { return "=:^'" }
 func (o OpSetCdr) String() string { return "=:>'" }
 func (o OpLt) String() string     { return "lt'" }
