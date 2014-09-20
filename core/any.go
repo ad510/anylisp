@@ -193,7 +193,17 @@ func Run() {
 				Panic("WTF! Can't call a set")
 			case fmt.Stringer:
 				switch t.(type) {
-				case OpSx: // op, arg, ret
+				case OpSx, OpPr: // op, arg, ret
+					if _, ok = t.(OpPr); ok && NCdr(f, 2) != nil {
+						s := make([]uint8, Len(NCarLA(f, 2, "WTF! "+t.String()+" takes a string")))
+						for i, arg := 0, NCarL(f, 2); arg != nil; i, arg = i+1, arg.Cdr() {
+							c, ok := arg.Car().(Inter)
+							Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1,
+								"WTF! Bad byte passed to "+t.String())
+							s[i] = uint8(c.Int64())
+						}
+						fmt.Print(string(s))
+					}
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
@@ -332,33 +342,6 @@ func Run() {
 						fmt.Print(t.String()+"3 ")
 						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+t.String())
 						Ret(NCar(f, 2))
-					}
-				case OpPr: // op, arg, ret...
-					if f.Cdr() == nil {
-						fmt.Print(t.String()+"0 ")
-						f.SetCdr(&List{e.Cdr(), nil})
-					} else {
-						if f.Cdr().Cdr() != nil {
-							fmt.Print(t.String()+"1 ")
-							// TODO: don't do this; this modifies the list in place even if it points into environment
-							SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! "+t.String()+" takes a string")
-						}
-						if f.Cdr().Car() != nil {
-							fmt.Print(t.String()+"2 ")
-							C = &List{&List{NCarL(f, 1).Car(), nil}, C}
-							f.Cdr().SetCar(NCarL(f, 1).Cdr())
-						} else {
-							fmt.Print(t.String()+"3 ")
-							s := make([]uint8, Len(f.Cdr().Cdr()))
-							for i, arg := 0, f.Cdr().Cdr(); arg != nil; i, arg = i+1, arg.Cdr() {
-								c, ok := arg.Car().(Inter)
-								Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1,
-									"WTF! Bad byte passed to "+t.String())
-								s[i] = uint8(c.Int64())
-							}
-							fmt.Print(string(s))
-							Ret(f.Cdr().Cdr())
-						}
 					}
 				default:
 					Panic("WTF! Unrecognized function (probably an interpreter bug)")
