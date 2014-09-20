@@ -229,7 +229,7 @@ func Run() {
 							Ret(arg.Last())
 						}
 					}
-				case OpNCar, OpNCdr, OpSetCar, OpSetCdr: // op, arg1, arg2
+				case OpSetCar, OpSetCdr: // op, dest, src
 					if Len(f) < 3 {
 						fmt.Print(t.String()+"0 ")
 						Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", t.String(), Len(f)-1))
@@ -238,10 +238,6 @@ func Run() {
 						fmt.Print(t.String()+"1 ")
 						x := NCarLA(f, 1, "WTF! 1st argument to "+t.String()+" must be a list")
 						switch t.(type) {
-						case OpNCar:
-							Ret(NCar(x, int(NCarIA(f, 2, "WTF! 2nd argument to "+t.String()+" must be an int").Int64())))
-						case OpNCdr:
-							Ret(NCdr(x, int(NCarIA(f, 2, "WTF! 2nd argument to "+t.String()+" must be an int").Int64())))
 						case OpSetCar:
 							Ret(x.SetCar(NCar(f, 2)))
 						case OpSetCdr:
@@ -286,7 +282,7 @@ func Run() {
 						fmt.Print(t.String()+"6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
-				case OpSetAdd, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
+				case OpNCar, OpNCdr, OpSetAdd, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						var cdr Lister
@@ -300,6 +296,14 @@ func Run() {
 					} else if NCdr(f, 3) != nil {
 						fmt.Print(t.String()+"1 ")
 						switch t.(type) {
+						case OpNCar:
+							x := NCarLA(f, 2, "WTF! "+t.String()+" takes a list")
+							y := int(NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64())
+							NCdr(f, 2).SetCar(NCar(x, y))
+						case OpNCdr:
+							x := NCarLA(f, 2, "WTF! "+t.String()+" takes a list")
+							y := int(NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64())
+							NCdr(f, 2).SetCar(NCdr(x, y))
 						case OpSetAdd:
 							x := NCarSA(f, 2, "WTF! 1st argument to "+t.String()+" must be a set")
 							(*x)[NCar(f, 3)] = true
