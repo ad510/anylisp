@@ -61,8 +61,8 @@ var (
 func Parse(code string) {
 	TempRoot = &List{OpSx{}, nil}
 	P = &List{TempRoot, nil}
-	S = &List{&List{&List{TempRoot, nil}, nil}, &List{&Set{
-		&List{OpSx{}.String(), &List{OpSx{}, nil}}: true, // TODO: store values directly in cdr
+	S = &List{&Set{ // TODO: store values directly in cdr
+		&List{OpSx{}.String(), &List{OpSx{}, nil}}: true,
 		&List{OpQ{}.String(), &List{OpQ{}, nil}}: true,
 		&List{OpCar{}.String(), &List{OpCar{}, nil}}: true,
 		&List{OpCdr{}.String(), &List{OpCdr{}, nil}}: true,
@@ -80,8 +80,8 @@ func Parse(code string) {
 		&List{OpIntDiv{}.String(), &List{OpIntDiv{}, nil}}: true,
 		&List{OpEval{}.String(), &List{OpEval{}, nil}}: true,
 		&List{OpPr{}.String(), &List{OpPr{}, nil}}: true,
-	}, nil}}
-	(*S.Cdr().Car().(*Set))[&List{"s'", &List{S, nil}}] = true
+	}, &List{&List{TempRoot, nil}, nil}}
+	(*S.Car().(*Set))[&List{"s'", &List{S, nil}}] = true
 	tok := ""
 	cm := false
 	for i := 0; i < len(code); i++ {
@@ -166,10 +166,9 @@ func Parse(code string) {
 }
 
 func Run() {
-	for S.Car() != nil {
-		C, ok := S.Car().(Lister)
-		Assert(ok, "WTF! Bad call stack")
-		E := S.Cdr()
+	for S.Cdr() != nil {
+		E := S.Car()
+		C := S.Cdr()
 		f, ok := C.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
 		switch e := f.Car().(type) {
@@ -204,7 +203,7 @@ func Run() {
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
 						fmt.Print(t.String()+"1 ")
-						S.SetCar(&List{&List{NCarL(f, 1).Car(), nil}, C})
+						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
 						fmt.Print(t.String()+"2 ")
@@ -218,7 +217,7 @@ func Run() {
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
-						S.SetCar(&List{&List{e.Cdr().Car(), nil}, C})
+						S.SetCdr(&List{&List{e.Cdr().Car(), nil}, C})
 					} else if f.Cdr().Car() == nil {
 						fmt.Print(t.String()+"1 ")
 						Ret(nil)
@@ -238,7 +237,7 @@ func Run() {
 					if Len(f) < 3 {
 						fmt.Print(t.String()+"0 ")
 						Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", t.String(), Len(f)-1))
-						S.SetCar(&List{&List{NCar(e, Len(f)), nil}, C})
+						S.SetCdr(&List{&List{NCar(e, Len(f)), nil}, C})
 					} else {
 						fmt.Print(t.String()+"1 ")
 						x := NCarLA(f, 1, "WTF! 1st argument to "+t.String()+" must be a list")
@@ -255,7 +254,7 @@ func Run() {
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
 						fmt.Print(t.String()+"1 ")
-						S.SetCar(&List{&List{NCarL(f, 1).Car(), nil}, C})
+						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						fmt.Print(t.String()+"2 ")
@@ -273,7 +272,7 @@ func Run() {
 						f.SetCdr(&List{e.Cdr(), &List{e.Cdr().Cdr(), nil}})
 					} else if NCdr(f, 3) == nil {
 						fmt.Print(t.String()+"2 ")
-						S.SetCar(&List{&List{NCarL(f, 1).Car(), nil}, C})
+						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 					} else if NCar(f, 2) == nil {
 						fmt.Print(t.String()+"3 ")
 						Ret(NCar(f, 3))
@@ -331,7 +330,7 @@ func Run() {
 						f.Cdr().Cdr().SetCdr(nil)
 					} else if f.Cdr().Car() != nil {
 						fmt.Print(t.String()+"2 ")
-						S.SetCar(&List{&List{NCarL(f, 1).Car(), nil}, C})
+						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						fmt.Print(t.String()+"3 ")
@@ -342,17 +341,17 @@ func Run() {
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
-						S.SetCar(&List{&List{e.Cdr().Car(), nil}, C})
+						S.SetCdr(&List{&List{e.Cdr().Car(), nil}, C})
 					} else {
 						fmt.Print(t.String()+"1 ")
-						S.SetCar(&List{&List{f.Cdr().Car(), nil}, C.Cdr()})
+						S.SetCdr(&List{&List{f.Cdr().Car(), nil}, C.Cdr()})
 					}
 				default:
 					Panic("WTF! Unrecognized function (probably an interpreter bug)")
 				}
 			} else if f.Cdr() == nil { // op, ret
 				fmt.Print("f0 ")
-				S.SetCar(&List{&List{op, nil}, C})
+				S.SetCdr(&List{&List{op, nil}, C})
 			} else {
 				fmt.Print("f1 ")
 				Ret(f.Cdr().Car())
@@ -395,12 +394,10 @@ func PrintTree(ls interface{}) {
 }
 
 func Ret(v interface{}) {
-	C, ok := S.Car().(Lister)
-	Assert(ok, "WTF! Bad call stack")
-	if C.Cdr() != nil {
-		NCarL(C, 1).Last().SetCdr(&List{v, nil})
+	if S.Cdr().Cdr() != nil {
+		NCarL(S, 2).Last().SetCdr(&List{v, nil})
 	}
-	S.SetCar(C.Cdr())
+	S.SetCdr(S.Cdr().Cdr())
 }
 
 func Lookup(ns interface{}, k string) (interface{}, bool) {
