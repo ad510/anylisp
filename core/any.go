@@ -48,6 +48,7 @@ type (
 	OpSub    struct{}
 	OpMul    struct{}
 	OpIntDiv struct{}
+	OpEval   struct{}
 	OpPr     struct{}
 )
 
@@ -76,6 +77,7 @@ func Parse(code string) {
 		&List{OpSub{}.String(), &List{OpSub{}, nil}}: true,
 		&List{OpMul{}.String(), &List{OpMul{}, nil}}: true,
 		&List{OpIntDiv{}.String(), &List{OpIntDiv{}, nil}}: true,
+		&List{OpEval{}.String(), &List{OpEval{}, nil}}: true,
 		&List{OpPr{}.String(), &List{OpPr{}, nil}}: true,
 	}, nil}
 	(*E.Car().(*Set))[&List{"e'", &List{E, nil}}] = true
@@ -343,6 +345,18 @@ func Run() {
 						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+t.String())
 						Ret(NCar(f, 2))
 					}
+				case OpEval:
+					if f.Cdr() == nil {
+						fmt.Print(t.String()+"0 ")
+						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
+						C = &List{&List{e.Cdr().Car(), nil}, C}
+					} else if f.Cdr().Cdr() == nil {
+						fmt.Print(t.String()+"1 ")
+						C = &List{&List{f.Cdr().Car(), nil}, C}
+					} else {
+						fmt.Print(t.String()+"2 ")
+						Ret(NCar(f, 2))
+					}
 				default:
 					Panic("WTF! Unrecognized function (probably an interpreter bug)")
 				}
@@ -529,6 +543,7 @@ func (o OpAdd) String() string    { return "+'" }
 func (o OpSub) String() string    { return "-'" }
 func (o OpMul) String() string    { return "*'" }
 func (o OpIntDiv) String() string { return "//'" }
+func (o OpEval) String() string   { return "ev'" }
 func (o OpPr) String() string     { return "pr'" }
 
 func Assert(cond bool, msg string) {
