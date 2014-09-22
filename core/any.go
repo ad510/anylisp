@@ -351,12 +351,9 @@ func Run() {
 						fmt.Print(t.String()+"0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
 						S.SetCar(&List{&List{e.Cdr().Car(), nil}, C})
-					} else if f.Cdr().Cdr() == nil {
-						fmt.Print(t.String()+"1 ")
-						S.SetCar(&List{&List{f.Cdr().Car(), nil}, C})
 					} else {
-						fmt.Print(t.String()+"2 ")
-						Ret(NCar(f, 2))
+						fmt.Print(t.String()+"1 ")
+						S.SetCar(&List{&List{f.Cdr().Car(), nil}, C.Cdr()})
 					}
 				default:
 					Panic("WTF! Unrecognized function (probably an interpreter bug)")
