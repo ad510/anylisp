@@ -207,7 +207,7 @@ func Run() {
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
 						fmt.Print(t.String()+"2 ")
-						Ret(f.Last().Car())
+						Ret(NCar(f, 2))
 					}
 				case OpQ:
 					fmt.Print(t.String()+" ")
