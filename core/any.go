@@ -185,16 +185,8 @@ func Run() {
 				op, ok = Lookup(E, sym)
 				Assert(ok, "WTF! Can't call undefined function \"" + sym + "\"")
 			}
-			switch t := op.(type) {
-			case nil:
-				Panic("WTF! Can't call the empty list")
-			case Inter:
-				Panic("WTF! Can't call an int")
-			case Lister:
-				Panic("WTF! Can't call a list")
-			case *Set:
-				Panic("WTF! Can't call a set")
-			case fmt.Stringer:
+			t, ok := op.(fmt.Stringer)
+			if ok {
 				switch t.(type) {
 				case OpSx, OpPr: // op, arg, ret
 					if _, ok = t.(OpPr); ok && NCdr(f, 2) != nil {
@@ -346,7 +338,7 @@ func Run() {
 						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+t.String())
 						Ret(NCar(f, 2))
 					}
-				case OpEval:
+				case OpEval: // op, ret
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
@@ -358,8 +350,12 @@ func Run() {
 				default:
 					Panic("WTF! Unrecognized function (probably an interpreter bug)")
 				}
-			default:
-				Panic("WTF! Unrecognized function type (probably an interpreter bug)")
+			} else if f.Cdr() == nil { // op, ret
+				fmt.Print("f0 ")
+				S.SetCar(&List{&List{op, nil}, C})
+			} else {
+				fmt.Print("f1 ")
+				Ret(f.Cdr().Car())
 			}
 		case *Set:
 			Panic("TODO: evaluate the set")
