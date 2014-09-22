@@ -350,10 +350,10 @@ func Run() {
 					Panic("WTF! Unrecognized function (probably an interpreter bug)")
 				}
 			} else if f.Cdr() == nil { // op, ret
-				fmt.Print("f0 ")
+				fmt.Print(sym+"0 ")
 				S.SetCdr(&List{&List{op, nil}, C})
 			} else {
-				fmt.Print("f1 ")
+				fmt.Print(sym+"1 ")
 				Ret(f.Cdr().Car())
 			}
 		case *Set:
