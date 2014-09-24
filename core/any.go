@@ -188,7 +188,7 @@ func Run() {
 			if ok {
 				switch t.(type) {
 				case OpSx, OpPr: // op, arg, ret
-					if _, ok = t.(OpPr); ok && NCdr(f, 2) != nil {
+					if _, ok = t.(OpPr); ok && NCdr(f, 2) != nil && NCar(f, 2) != nil {
 						s := make([]uint8, Len(NCarLA(f, 2, "WTF! "+t.String()+" takes a string")))
 						for i, arg := 0, NCarL(f, 2); arg != nil; i, arg = i+1, arg.Cdr() {
 							c, ok := arg.Car().(Inter)
