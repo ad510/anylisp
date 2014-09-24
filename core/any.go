@@ -43,6 +43,7 @@ type (
 	OpSetCdr struct{}
 	OpLt     struct{}
 	OpSetAdd struct{}
+	OpLen    struct{}
 	OpIf     struct{}
 	OpAdd    struct{}
 	OpSub    struct{}
@@ -73,6 +74,7 @@ func Parse(code string) {
 		&List{OpSetCdr{}.String(), &List{OpSetCdr{}, nil}}: true,
 		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
 		&List{OpSetAdd{}.String(), &List{OpSetAdd{}, nil}}: true,
+		&List{OpLen{}.String(), &List{OpLen{}, nil}}: true,
 		&List{OpIf{}.String(), &List{OpIf{}, nil}}: true,
 		&List{OpAdd{}.String(), &List{OpAdd{}, nil}}: true,
 		&List{OpSub{}.String(), &List{OpSub{}, nil}}: true,
@@ -213,16 +215,28 @@ func Run() {
 					fmt.Print(t.String()+" ")
 					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
 					Ret(e.Cdr().Car())
-				case OpCar, OpCdr, OpLast: // op, ret
+				case OpCar, OpCdr, OpLast, OpLen: // op, ret
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
 						S.SetCdr(&List{&List{e.Cdr().Car(), nil}, C})
-					} else if f.Cdr().Car() == nil {
+					} else if _, ok = t.(OpLen); ok {
 						fmt.Print(t.String()+"1 ")
+						switch arg := f.Cdr().Car().(type) {
+						case nil:
+							Ret(big.NewInt(0))
+						case Lister:
+							Ret(big.NewInt(Len(arg)))
+						case *Set:
+							Ret(big.NewInt(int64(len(*arg))))
+						default:
+							Panic("WTF! "+t.String()+" takes a list or set")
+						}
+					} else if f.Cdr().Car() == nil {
+						fmt.Print(t.String()+"2 ")
 						Ret(nil)
 					} else {
-						fmt.Print(t.String()+"2 ")
+						fmt.Print(t.String()+"3 ")
 						arg := NCarLA(f, 1, "WTF! "+t.String()+" takes a list")
 						switch t.(type) {
 						case OpCar:
@@ -302,11 +316,11 @@ func Run() {
 						switch t.(type) {
 						case OpNCar:
 							x := NCarLA(f, 2, "WTF! "+t.String()+" takes a list")
-							y := int(NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64())
+							y := NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64()
 							NCdr(f, 2).SetCar(NCar(x, y))
 						case OpNCdr:
 							x := NCarLA(f, 2, "WTF! "+t.String()+" takes a list")
-							y := int(NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64())
+							y := NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64()
 							NCdr(f, 2).SetCar(NCdr(x, y))
 						case OpSetAdd:
 							x := NCarSA(f, 2, "WTF! 1st argument to "+t.String()+" must be a set")
@@ -428,7 +442,7 @@ func Lookup(ns interface{}, k string) (interface{}, bool) {
 	return nil, false
 }
 
-func Len(ls Lister) int {
+func Len(ls Lister) int64 {
 	if ls == nil {
 		return 0
 	}
@@ -438,35 +452,35 @@ func Len(ls Lister) int {
 	return Len(ls.Cdr()) + 1
 }
 
-func NCar(ls Lister, n int) interface{} {
+func NCar(ls Lister, n int64) interface{} {
 	nCdr := NCdr(ls, n)
 	Assert(nCdr != nil, "WTF! Out of bounds when calling :'")
 	return nCdr.Car()
 }
 
-func NCarL(ls Lister, n int) Lister {
+func NCarL(ls Lister, n int64) Lister {
 	return NCarLA(ls, n, "WTF! Requested list element isn't a list")
 }
 
-func NCarLA(ls Lister, n int, msg string) Lister {
+func NCarLA(ls Lister, n int64, msg string) Lister {
 	nCar, ok := NCar(ls, n).(Lister)
 	Assert(ok, msg)
 	return nCar
 }
 
-func NCarSA(ls Lister, n int, msg string) *Set {
+func NCarSA(ls Lister, n int64, msg string) *Set {
 	nCar, ok := NCar(ls, n).(*Set)
 	Assert(ok, msg)
 	return nCar
 }
 
-func NCarIA(ls Lister, n int, msg string) *big.Int {
+func NCarIA(ls Lister, n int64, msg string) *big.Int {
 	nCar, ok := NCar(ls, n).(*big.Int)
 	Assert(ok, msg)
 	return nCar
 }
 
-func NCdr(ls Lister, n int) Lister {
+func NCdr(ls Lister, n int64) Lister {
 	if ls == nil {
 		return nil
 	}
@@ -531,6 +545,7 @@ func (o OpSetCar) String() string { return "=:^'" }
 func (o OpSetCdr) String() string { return "=:>'" }
 func (o OpLt) String() string     { return "lt'" }
 func (o OpSetAdd) String() string { return "$+'" }
+func (o OpLen) String() string    { return "ln'" }
 func (o OpIf) String() string     { return "?'" }
 func (o OpAdd) String() string    { return "+'" }
 func (o OpSub) String() string    { return "-'" }
