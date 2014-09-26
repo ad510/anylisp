@@ -10,7 +10,7 @@ import (
 type (
 	Lister interface {
 		Car() interface{}
-		SetCar(v interface{}) interface{}
+		SetCar(v interface{}) Lister
 		Cdr() Lister
 		SetCdr(v Lister) Lister
 		Last() Lister
@@ -41,6 +41,7 @@ type (
 	OpNCdr   struct{}
 	OpSetCar struct{}
 	OpSetCdr struct{}
+	OpSetPair struct{}
 	OpLt     struct{}
 	OpSetAdd struct{}
 	OpLen    struct{}
@@ -72,6 +73,7 @@ func Parse(code string) {
 		&List{OpNCdr{}.String(), &List{OpNCdr{}, nil}}: true,
 		&List{OpSetCar{}.String(), &List{OpSetCar{}, nil}}: true,
 		&List{OpSetCdr{}.String(), &List{OpSetCdr{}, nil}}: true,
+		&List{OpSetPair{}.String(), &List{OpSetPair{}, nil}}: true,
 		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
 		&List{OpSetAdd{}.String(), &List{OpSetAdd{}, nil}}: true,
 		&List{OpLen{}.String(), &List{OpLen{}, nil}}: true,
@@ -247,7 +249,7 @@ func Run() {
 							Ret(arg.Last())
 						}
 					}
-				case OpSetCar, OpSetCdr: // op, dest, src
+				case OpSetCar, OpSetCdr, OpSetPair: // op, dest, src
 					if Len(f) < 3 {
 						fmt.Print(t.String()+"0 ")
 						Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", t.String(), Len(f)-1))
@@ -260,6 +262,9 @@ func Run() {
 							Ret(x.SetCar(NCar(f, 2)))
 						case OpSetCdr:
 							Ret(SetCdrA(x, NCar(f, 2), "WTF! 2nd argument to "+t.String()+" must be a list"))
+						case OpSetPair:
+							y := NCarLA(f, 2, "WTF! 2nd argument to "+t.String()+" must be a list")
+							Ret(x.SetCar(y.Car()).SetCdr(y.Cdr()))
 						}
 					}
 				case OpLt: // op, arg, ret...
@@ -512,10 +517,9 @@ func (ls *List) Car() interface{} {
 	return ls.car
 }
 
-// TODO: should this return ls or v?
-func (ls *List) SetCar(v interface{}) interface{} {
+func (ls *List) SetCar(v interface{}) Lister {
 	ls.car = v
-	return v
+	return ls
 }
 
 func (ls *List) Cdr() Lister {
@@ -524,7 +528,7 @@ func (ls *List) Cdr() Lister {
 
 func (ls *List) SetCdr(v Lister) Lister {
 	ls.cdr = v
-	return v
+	return ls
 }
 
 func (ls *List) Last() Lister {
@@ -543,6 +547,7 @@ func (o OpNCar) String() string   { return ":'" }
 func (o OpNCdr) String() string   { return ":@'" }
 func (o OpSetCar) String() string { return "=:^'" }
 func (o OpSetCdr) String() string { return "=:>'" }
+func (o OpSetPair) String() string { return "=:'" }
 func (o OpLt) String() string     { return "lt'" }
 func (o OpSetAdd) String() string { return "$+'" }
 func (o OpLen) String() string    { return "ln'" }
