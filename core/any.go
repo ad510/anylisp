@@ -219,7 +219,7 @@ func Run() {
 					fmt.Print(t.String()+" ")
 					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
 					Ret(e.Cdr().Car())
-				case OpCar, OpCdr, OpLast, OpLen, OpLookup: // op, ret
+				case OpCar, OpCdr, OpLast, OpLen: // op, ret
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
@@ -236,21 +236,11 @@ func Run() {
 						default:
 							Panic("WTF! "+t.String()+" takes a list or set")
 						}
-					} else if _, ok = t.(OpLookup); ok {
-						fmt.Print(t.String()+"2 ")
-						arg, ok := f.Cdr().Car().(string)
-						Assert(ok, "WTF! "+t.String()+" takes a symbol")
-						_, s, ok := Lookup(E, arg)
-						if ok {
-							Ret(s)
-						} else {
-							Ret(nil)
-						}
 					} else if f.Cdr().Car() == nil {
-						fmt.Print(t.String()+"3 ")
+						fmt.Print(t.String()+"2 ")
 						Ret(nil)
 					} else {
-						fmt.Print(t.String()+"4 ")
+						fmt.Print(t.String()+"3 ")
 						arg := NCarLA(f, 1, "WTF! "+t.String()+" takes a list")
 						switch t.(type) {
 						case OpCar:
@@ -261,13 +251,21 @@ func Run() {
 							Ret(arg.Last())
 						}
 					}
-				case OpSetCar, OpSetCdr, OpSetPair: // op, dest, src
+				case OpSetCar, OpSetCdr, OpSetPair, OpLookup: // op, dest, src
 					if Len(f) < 3 {
 						fmt.Print(t.String()+"0 ")
 						Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", t.String(), Len(f)-1))
 						S.SetCdr(&List{&List{NCar(e, Len(f)), nil}, C})
-					} else {
+					} else if _, ok = t.(OpLookup); ok {
 						fmt.Print(t.String()+"1 ")
+						_, s, ok := Lookup(NCar(f, 1), NCarSymA(f, 2, "WTF! 2nd argument to "+t.String()+" must be a symbol"))
+						if ok {
+							Ret(s)
+						} else {
+							Ret(nil)
+						}
+					} else {
+						fmt.Print(t.String()+"2 ")
 						x := NCarLA(f, 1, "WTF! 1st argument to "+t.String()+" must be a list")
 						switch t.(type) {
 						case OpSetCar:
@@ -488,6 +486,12 @@ func NCarLA(ls Lister, n int64, msg string) Lister {
 
 func NCarSA(ls Lister, n int64, msg string) *Set {
 	nCar, ok := NCar(ls, n).(*Set)
+	Assert(ok, msg)
+	return nCar
+}
+
+func NCarSymA(ls Lister, n int64, msg string) string {
+	nCar, ok := NCar(ls, n).(string)
 	Assert(ok, msg)
 	return nCar
 }
