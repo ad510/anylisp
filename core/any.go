@@ -177,6 +177,14 @@ func Run() {
 	for S.Cdr() != nil {
 		E := S.Car()
 		C := S.Cdr()
+		Ret := func(v interface{}) {
+			// set return value on cached call stack but pop frame off live call stack
+			// so programs can mess with control flow
+			if C.Cdr() != nil {
+				NCarL(C, 1).Last().SetCdr(&List{v, nil})
+			}
+			S.SetCdr(S.Cdr().Cdr())
+		}
 		f, ok := C.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
 		switch e := f.Car().(type) {
@@ -425,13 +433,6 @@ func PrintTree(ls interface{}) {
 	default:
 		Panic("Unrecognized object in tree")
 	}
-}
-
-func Ret(v interface{}) {
-	if S.Cdr().Cdr() != nil {
-		NCarL(S, 2).Last().SetCdr(&List{v, nil})
-	}
-	S.SetCdr(S.Cdr().Cdr())
 }
 
 func Lookup(ns interface{}, k string) (interface{}, Lister, bool) {
