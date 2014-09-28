@@ -1,12 +1,45 @@
-#'
-S : ev lt =:^ f
-              e
-              = arg
-'#
 (=:^' s' (lt' (q' [
+  #'
+  S : ev lt =:^ f
+                e
+                = arg
+  '#
   (= (=:^' s' (lt' (ev' (:' s' '5 '0 '1)) (:^' s'))))
+
+  #' TODO: s' indices wrong b/c = needs multiple stack frames '#
+  (lb (= (lt' (:' s' '4 '0 '1) (:@' s' '5) ())))
+
+  (rn (sx'
+    (= (lt' (q' __rn1) (ev' (:' s' '6 '0 '1)) ()))
+    (= (lt' (q' __rn2) (ev' (:' s' '6 '0 '2)) ()))
+    (=:>' (:|' (:^' __rn1)) (lt' __rn2 ()))
+    (=:>' s' __rn1)
+  ))
+
+  (?? (sx'
+    (= (lt' (q' __??1) (:' s' '5 '0 '1) ()))
+    (= (lt' (q' __??2) (:' s' '5 '0 '2) ()))
+    (lb __top)
+    (?' (ev' __??1)
+      (rn (ev' __??2))
+    )
+  ))
+
+  (testfn (?' x (sx'
+    (pr' x)
+    (= (lt' (q' x) (:>' x) ()))
+    (testfn)
+  )))
+
+  (testfn1 (?? x (sx'
+    (pr' x)
+    (= (lt' (q' x) (:>' x) ()))
+  )))
 ]) (:^' s') ()))
 
 #' test code '#
 (= (q' (answer ('34 '32 'a))))
 (pr' answer)
+
+(= (q' (x ('30 '31 '32 'a))))
+(testfn)
