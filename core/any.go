@@ -50,6 +50,7 @@ type (
 	OpSub    struct{}
 	OpMul    struct{}
 	OpIntDiv struct{}
+	OpLookup struct{}
 	OpEval   struct{}
 	OpPr     struct{}
 )
@@ -82,6 +83,7 @@ func Parse(code string) {
 		&List{OpSub{}.String(), &List{OpSub{}, nil}}: true,
 		&List{OpMul{}.String(), &List{OpMul{}, nil}}: true,
 		&List{OpIntDiv{}.String(), &List{OpIntDiv{}, nil}}: true,
+		&List{OpLookup{}.String(), &List{OpLookup{}, nil}}: true,
 		&List{OpEval{}.String(), &List{OpEval{}, nil}}: true,
 		&List{OpPr{}.String(), &List{OpPr{}, nil}}: true,
 	}, &List{&List{TempRoot, nil}, nil}}
@@ -178,14 +180,14 @@ func Run() {
 		switch e := f.Car().(type) {
 		case string:
 			fmt.Print("e ")
-			v, ok := Lookup(E, e)
+			v, _, ok := Lookup(E, e)
 			Assert(ok, "WTF! \"" + e + "\" not defined")
 			Ret(v)
 		case Lister:
 			op := e.Car()
 			sym, ok := op.(string)
 			if ok {
-				op, ok = Lookup(E, sym)
+				op, _, ok = Lookup(E, sym)
 				Assert(ok, "WTF! Can't call undefined function \"" + sym + "\"")
 			}
 			t, ok := op.(fmt.Stringer)
@@ -217,7 +219,7 @@ func Run() {
 					fmt.Print(t.String()+" ")
 					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
 					Ret(e.Cdr().Car())
-				case OpCar, OpCdr, OpLast, OpLen: // op, ret
+				case OpCar, OpCdr, OpLast, OpLen, OpLookup: // op, ret
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
@@ -234,11 +236,21 @@ func Run() {
 						default:
 							Panic("WTF! "+t.String()+" takes a list or set")
 						}
-					} else if f.Cdr().Car() == nil {
+					} else if _, ok = t.(OpLookup); ok {
 						fmt.Print(t.String()+"2 ")
+						arg, ok := f.Cdr().Car().(string)
+						Assert(ok, "WTF! "+t.String()+" takes a symbol")
+						_, s, ok := Lookup(E, arg)
+						if ok {
+							Ret(s)
+						} else {
+							Ret(nil)
+						}
+					} else if f.Cdr().Car() == nil {
+						fmt.Print(t.String()+"3 ")
 						Ret(nil)
 					} else {
-						fmt.Print(t.String()+"3 ")
+						fmt.Print(t.String()+"4 ")
 						arg := NCarLA(f, 1, "WTF! "+t.String()+" takes a list")
 						switch t.(type) {
 						case OpCar:
@@ -419,32 +431,33 @@ func Ret(v interface{}) {
 	S.SetCdr(S.Cdr().Cdr())
 }
 
-func Lookup(ns interface{}, k string) (interface{}, bool) {
+func Lookup(ns interface{}, k string) (interface{}, Lister, bool) {
 	switch t := ns.(type) {
 	case Lister:
 		k2, ok := t.Car().(string)
 		if ok {
 			if k == k2 {
-				return t.Cdr().Car(), true
+				return t.Cdr().Car(), &List{ns, nil}, true
 			}
 		} else {
-			v, ok := Lookup(t.Car(), k)
+			v, s, ok := Lookup(t.Car(), k)
 			if ok {
-				return v, true
+				return v, &List{ns, s}, true
 			}
 			if t.Cdr() != nil {
-				return Lookup(t.Cdr(), k)
+				v, s, ok = Lookup(t.Cdr(), k)
+				return v, &List{ns, s}, ok
 			}
 		}
 	case *Set:
 		for k2 := range *t {
-			v, ok := Lookup(k2, k)
+			v, s, ok := Lookup(k2, k)
 			if ok {
-				return v, true
+				return v, &List{ns, s}, true
 			}
 		}
 	}
-	return nil, false
+	return nil, nil, false
 }
 
 func Len(ls Lister) int64 {
@@ -556,6 +569,7 @@ func (o OpAdd) String() string    { return "+'" }
 func (o OpSub) String() string    { return "-'" }
 func (o OpMul) String() string    { return "*'" }
 func (o OpIntDiv) String() string { return "//'" }
+func (o OpLookup) String() string { return "lu'" }
 func (o OpEval) String() string   { return "ev'" }
 func (o OpPr) String() string     { return "pr'" }
 
