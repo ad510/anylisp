@@ -44,6 +44,7 @@ type (
 	OpSetPair struct{}
 	OpLt     struct{}
 	OpSetAdd struct{}
+	OpSetRm  struct{}
 	OpLen    struct{}
 	OpIf     struct{}
 	OpAdd    struct{}
@@ -77,6 +78,7 @@ func Parse(code string) {
 		&List{OpSetPair{}.String(), &List{OpSetPair{}, nil}}: true,
 		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
 		&List{OpSetAdd{}.String(), &List{OpSetAdd{}, nil}}: true,
+		&List{OpSetRm{}.String(), &List{OpSetRm{}, nil}}: true,
 		&List{OpLen{}.String(), &List{OpLen{}, nil}}: true,
 		&List{OpIf{}.String(), &List{OpIf{}, nil}}: true,
 		&List{OpAdd{}.String(), &List{OpAdd{}, nil}}: true,
@@ -315,7 +317,7 @@ func Run() {
 						fmt.Print(t.String()+"6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
-				case OpNCar, OpNCdr, OpSetAdd, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
+				case OpNCar, OpNCdr, OpSetAdd, OpSetRm, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						var cdr Lister
@@ -340,6 +342,9 @@ func Run() {
 						case OpSetAdd:
 							x := NCarSA(f, 2, "WTF! 1st argument to "+t.String()+" must be a set")
 							(*x)[NCar(f, 3)] = true
+						case OpSetRm:
+							x := NCarSA(f, 2, "WTF! 1st argument to "+t.String()+" must be a set")
+							delete(*x, NCar(f, 3))
 						default:
 							x := NCarIA(f, 2, "WTF! "+t.String()+" takes numbers")
 							y := NCarIA(f, 3, "WTF! "+t.String()+" takes numbers")
@@ -567,6 +572,7 @@ func (o OpSetCdr) String() string { return "=:>'" }
 func (o OpSetPair) String() string { return "=:'" }
 func (o OpLt) String() string     { return "lt'" }
 func (o OpSetAdd) String() string { return "$+'" }
+func (o OpSetRm) String() string  { return "$-'" }
 func (o OpLen) String() string    { return "ln'" }
 func (o OpIf) String() string     { return "?'" }
 func (o OpAdd) String() string    { return "+'" }
