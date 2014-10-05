@@ -178,12 +178,12 @@ func Run() {
 		E := S.Car()
 		C := S.Cdr()
 		Ret := func(v interface{}) {
-			// set return value on cached call stack but pop frame off live call stack
-			// so programs can mess with control flow
-			if C.Cdr() != nil {
-				NCarL(C, 1).Last().SetCdr(&List{v, nil})
+			if C == S.Cdr() {
+				if C.Cdr() != nil {
+					NCarL(C, 1).Last().SetCdr(&List{v, nil})
+				}
+				S.SetCdr(C.Cdr())
 			}
-			S.SetCdr(S.Cdr().Cdr())
 		}
 		f, ok := C.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
