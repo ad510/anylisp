@@ -43,6 +43,7 @@ type (
 	OpSetCdr struct{}
 	OpSetPair struct{}
 	OpLt     struct{}
+	OpSet    struct{}
 	OpSetAdd struct{}
 	OpSetRm  struct{}
 	OpLen    struct{}
@@ -77,6 +78,7 @@ func Parse(code string) {
 		&List{OpSetCdr{}.String(), &List{OpSetCdr{}, nil}}: true,
 		&List{OpSetPair{}.String(), &List{OpSetPair{}, nil}}: true,
 		&List{OpLt{}.String(), &List{OpLt{}, nil}}: true,
+		&List{OpSet{}.String(), &List{OpSet{}, nil}}: true,
 		&List{OpSetAdd{}.String(), &List{OpSetAdd{}, nil}}: true,
 		&List{OpSetRm{}.String(), &List{OpSetRm{}, nil}}: true,
 		&List{OpLen{}.String(), &List{OpLen{}, nil}}: true,
@@ -325,11 +327,13 @@ func Run() {
 						fmt.Print(t.String()+"6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
-				case OpNCar, OpNCdr, OpSetAdd, OpSetRm, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
+				case OpNCar, OpNCdr, OpSet, OpSetAdd, OpSetRm, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 					if f.Cdr() == nil {
 						fmt.Print(t.String()+"0 ")
 						var cdr Lister
 						switch t.(type) {
+						case OpSet:
+							cdr = &List{&Set{}, nil}
 						case OpAdd:
 							cdr = &List{big.NewInt(0), nil}
 						case OpMul:
@@ -347,7 +351,7 @@ func Run() {
 							x := NCarLA(f, 2, "WTF! "+t.String()+" takes a list")
 							y := NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64()
 							NCdr(f, 2).SetCar(NCdr(x, y))
-						case OpSetAdd:
+						case OpSet, OpSetAdd:
 							x := NCarSA(f, 2, "WTF! 1st argument to "+t.String()+" must be a set")
 							(*x)[NCar(f, 3)] = true
 						case OpSetRm:
@@ -572,6 +576,7 @@ func (o OpSetCar) String() string { return "=:^'" }
 func (o OpSetCdr) String() string { return "=:>'" }
 func (o OpSetPair) String() string { return "=:'" }
 func (o OpLt) String() string     { return "lt'" }
+func (o OpSet) String() string    { return "st'" }
 func (o OpSetAdd) String() string { return "$+'" }
 func (o OpSetRm) String() string  { return "$-'" }
 func (o OpLen) String() string    { return "ln'" }
