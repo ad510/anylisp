@@ -184,48 +184,48 @@ func Run() {
 			Assert(ok, "WTF! \""+e+"\" not defined")
 			Ret(v)
 		case Lister:
-			op := e.Car()
-			sym, ok := op.(string)
+			fn := e.Car()
+			sym, ok := fn.(string)
 			if ok {
-				op, _, ok = Lookup(E, sym)
+				fn, _, ok = Lookup(E, sym)
 				Assert(ok, "WTF! Can't call undefined function \""+sym+"\"")
 			}
-			t, ok := op.(fmt.Stringer)
+			op, ok := fn.(fmt.Stringer)
 			if ok {
-				switch t.(type) {
+				switch op.(type) {
 				case OpSx, OpPr: // op, arg, ret
-					if _, ok = t.(OpPr); ok && NCdr(f, 2) != nil && NCar(f, 2) != nil {
-						s := make([]uint8, Len(NCarLA(f, 2, "WTF! "+t.String()+" takes a string")))
+					if _, ok = op.(OpPr); ok && NCdr(f, 2) != nil && NCar(f, 2) != nil {
+						s := make([]uint8, Len(NCarLA(f, 2, "WTF! "+op.String()+" takes a string")))
 						for i, arg := 0, NCarL(f, 2); arg != nil; i, arg = i+1, arg.Cdr() {
 							c, ok := arg.Car().(Inter)
 							Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1,
-								"WTF! Bad byte passed to "+t.String())
+								"WTF! Bad byte passed to "+op.String())
 							s[i] = uint8(c.Int64())
 						}
 						fmt.Print(string(s))
 					}
 					if f.Cdr() == nil {
-						fmt.Print(t.String() + "0 ")
+						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(t.String() + "1 ")
+						fmt.Print(op.String() + "1 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
-						fmt.Print(t.String() + "2 ")
+						fmt.Print(op.String() + "2 ")
 						Ret(NCar(f, 2))
 					}
 				case OpQ:
-					fmt.Print(t.String() + " ")
+					fmt.Print(op.String() + " ")
 					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
 					Ret(e.Cdr().Car())
 				case OpCar, OpCdr, OpLast, OpLen: // op, ret
 					if f.Cdr() == nil {
-						fmt.Print(t.String() + "0 ")
-						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
+						fmt.Print(op.String() + "0 ")
+						Assert(e.Cdr() != nil, "WTF! Missing argument to "+op.String())
 						S.SetCdr(&List{&List{e.Cdr().Car(), nil}, C})
-					} else if _, ok = t.(OpLen); ok {
-						fmt.Print(t.String() + "1 ")
+					} else if _, ok = op.(OpLen); ok {
+						fmt.Print(op.String() + "1 ")
 						switch arg := f.Cdr().Car().(type) {
 						case nil:
 							Ret(big.NewInt(0))
@@ -234,15 +234,15 @@ func Run() {
 						case *Set:
 							Ret(big.NewInt(int64(len(*arg))))
 						default:
-							Panic("WTF! " + t.String() + " takes a list or set")
+							Panic("WTF! " + op.String() + " takes a list or set")
 						}
 					} else if f.Cdr().Car() == nil {
-						fmt.Print(t.String() + "2 ")
+						fmt.Print(op.String() + "2 ")
 						Ret(nil)
 					} else {
-						fmt.Print(t.String() + "3 ")
-						arg := NCarLA(f, 1, "WTF! "+t.String()+" takes a list")
-						switch t.(type) {
+						fmt.Print(op.String() + "3 ")
+						arg := NCarLA(f, 1, "WTF! "+op.String()+" takes a list")
+						switch op.(type) {
 						case OpCar:
 							Ret(arg.Car())
 						case OpCdr:
@@ -250,80 +250,80 @@ func Run() {
 						case OpLast:
 							Ret(arg.Last())
 						default:
-							BadOp(t)
+							BadOp(op)
 						}
 					}
 				case OpSetCar, OpSetCdr, OpSetPair, OpLookup: // op, dest, src
 					if Len(f) < 3 {
-						fmt.Print(t.String() + "0 ")
-						Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", t.String(), Len(f)-1))
+						fmt.Print(op.String() + "0 ")
+						Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", op.String(), Len(f)-1))
 						S.SetCdr(&List{&List{NCar(e, Len(f)), nil}, C})
-					} else if _, ok = t.(OpLookup); ok {
-						fmt.Print(t.String() + "1 ")
-						_, s, ok := Lookup(NCar(f, 1), NCarSymA(f, 2, "WTF! 2nd argument to "+t.String()+" must be a symbol"))
+					} else if _, ok = op.(OpLookup); ok {
+						fmt.Print(op.String() + "1 ")
+						_, s, ok := Lookup(NCar(f, 1), NCarSymA(f, 2, "WTF! 2nd argument to "+op.String()+" must be a symbol"))
 						if ok {
 							Ret(s)
 						} else {
 							Ret(nil)
 						}
 					} else {
-						fmt.Print(t.String() + "2 ")
-						x := NCarLA(f, 1, "WTF! 1st argument to "+t.String()+" must be a list")
-						switch t.(type) {
+						fmt.Print(op.String() + "2 ")
+						x := NCarLA(f, 1, "WTF! 1st argument to "+op.String()+" must be a list")
+						switch op.(type) {
 						case OpSetCar:
 							Ret(x.SetCar(NCar(f, 2)))
 						case OpSetCdr:
-							Ret(SetCdrA(x, NCar(f, 2), "WTF! 2nd argument to "+t.String()+" must be a list"))
+							Ret(SetCdrA(x, NCar(f, 2), "WTF! 2nd argument to "+op.String()+" must be a list"))
 						case OpSetPair:
-							y := NCarLA(f, 2, "WTF! 2nd argument to "+t.String()+" must be a list")
+							y := NCarLA(f, 2, "WTF! 2nd argument to "+op.String()+" must be a list")
 							Ret(x.SetCar(y.Car()).SetCdr(y.Cdr()))
 						default:
-							BadOp(t)
+							BadOp(op)
 						}
 					}
 				case OpList: // op, arg, ret...
 					if f.Cdr() == nil {
-						fmt.Print(t.String() + "0 ")
+						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(t.String() + "1 ")
+						fmt.Print(op.String() + "1 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
-						fmt.Print(t.String() + "2 ")
-						SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to "+t.String()+" must be a list")
+						fmt.Print(op.String() + "2 ")
+						SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to "+op.String()+" must be a list")
 						Ret(NCdr(f, 2))
 					}
 				case OpIf:
 					// op, if part, then part, ret
 					// op, then part, nil, ret
 					if e.Cdr() == nil {
-						fmt.Print(t.String() + "0 ")
+						fmt.Print(op.String() + "0 ")
 						Ret(nil)
 					} else if NCdr(f, 1) == nil {
-						fmt.Print(t.String() + "1 ")
+						fmt.Print(op.String() + "1 ")
 						f.SetCdr(&List{e.Cdr(), &List{e.Cdr().Cdr(), nil}})
 					} else if NCdr(f, 3) == nil {
-						fmt.Print(t.String() + "2 ")
+						fmt.Print(op.String() + "2 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 					} else if NCar(f, 2) == nil {
-						fmt.Print(t.String() + "3 ")
+						fmt.Print(op.String() + "3 ")
 						Ret(NCar(f, 3))
 					} else if NCar(f, 3) != nil {
-						fmt.Print(t.String() + "4 ")
+						fmt.Print(op.String() + "4 ")
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), &List{}})
 					} else if NCarL(f, 2).Cdr() == nil {
-						fmt.Print(t.String() + "5 ")
+						fmt.Print(op.String() + "5 ")
 						Ret(nil)
 					} else {
-						fmt.Print(t.String() + "6 ")
+						fmt.Print(op.String() + "6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
 				case OpNCar, OpNCdr, OpSet, OpSetAdd, OpSetRm, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 					if f.Cdr() == nil {
-						fmt.Print(t.String() + "0 ")
+						fmt.Print(op.String() + "0 ")
 						var cdr Lister
-						switch t.(type) {
+						switch op.(type) {
 						case OpSet:
 							cdr = &List{&Set{}, nil}
 						case OpAdd:
@@ -333,26 +333,26 @@ func Run() {
 						}
 						f.SetCdr(&List{e.Cdr(), cdr})
 					} else if NCdr(f, 3) != nil {
-						fmt.Print(t.String() + "1 ")
-						switch t.(type) {
+						fmt.Print(op.String() + "1 ")
+						switch op.(type) {
 						case OpNCar:
-							x := NCarLA(f, 2, "WTF! "+t.String()+" takes a list")
-							y := NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64()
+							x := NCarLA(f, 2, "WTF! "+op.String()+" takes a list")
+							y := NCarIA(f, 3, "WTF! "+op.String()+" index must be an int").Int64()
 							NCdr(f, 2).SetCar(NCar(x, y))
 						case OpNCdr:
-							x := NCarLA(f, 2, "WTF! "+t.String()+" takes a list")
-							y := NCarIA(f, 3, "WTF! "+t.String()+" index must be an int").Int64()
+							x := NCarLA(f, 2, "WTF! "+op.String()+" takes a list")
+							y := NCarIA(f, 3, "WTF! "+op.String()+" index must be an int").Int64()
 							NCdr(f, 2).SetCar(NCdr(x, y))
 						case OpSet, OpSetAdd:
-							x := NCarSA(f, 2, "WTF! 1st argument to "+t.String()+" must be a set")
+							x := NCarSA(f, 2, "WTF! 1st argument to "+op.String()+" must be a set")
 							(*x)[NCar(f, 3)] = true
 						case OpSetRm:
-							x := NCarSA(f, 2, "WTF! 1st argument to "+t.String()+" must be a set")
+							x := NCarSA(f, 2, "WTF! 1st argument to "+op.String()+" must be a set")
 							delete(*x, NCar(f, 3))
 						default:
-							x := NCarIA(f, 2, "WTF! "+t.String()+" takes numbers")
-							y := NCarIA(f, 3, "WTF! "+t.String()+" takes numbers")
-							switch t.(type) {
+							x := NCarIA(f, 2, "WTF! "+op.String()+" takes numbers")
+							y := NCarIA(f, 3, "WTF! "+op.String()+" takes numbers")
+							switch op.(type) {
 							case OpAdd:
 								x.Add(x, y)
 							case OpSub:
@@ -364,33 +364,33 @@ func Run() {
 								// this does Euclidean division (like Python and unlike C), and I like that
 								NCdr(f, 2).SetCar(new(big.Int).Div(x, y))
 							default:
-								BadOp(t)
+								BadOp(op)
 							}
 						}
 						f.Cdr().Cdr().SetCdr(nil)
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(t.String() + "2 ")
+						fmt.Print(op.String() + "2 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
-						fmt.Print(t.String() + "3 ")
-						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+t.String())
+						fmt.Print(op.String() + "3 ")
+						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+op.String())
 						Ret(NCar(f, 2))
 					}
 				case OpEq, OpNe, OpLt, OpGt, OpLte, OpGte: // op, arg, ret1, ret2
-					_, eq := t.(OpEq)
-					_, ne := t.(OpNe)
+					_, eq := op.(OpEq)
+					_, ne := op.(OpNe)
 					if f.Cdr() == nil {
-						fmt.Print(t.String() + "0 ")
+						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if !eq && !ne && NCdr(f, 2) != nil && NCar(f, 2) == nil {
-						fmt.Print(t.String() + "1 ")
+						fmt.Print(op.String() + "1 ")
 						Ret(nil)
 					} else if NCdr(f, 3) != nil {
-						fmt.Print(t.String() + "2 ")
-						c := NCarIA(f, 2, "WTF! "+t.String()+" takes numbers").Cmp(NCarIA(f, 3, "WTF! "+t.String()+" takes numbers"))
+						fmt.Print(op.String() + "2 ")
+						c := NCarIA(f, 2, "WTF! "+op.String()+" takes numbers").Cmp(NCarIA(f, 3, "WTF! "+op.String()+" takes numbers"))
 						var b bool
-						switch t.(type) {
+						switch op.(type) {
 						case OpEq:
 							b = c == 0
 						case OpNe:
@@ -404,7 +404,7 @@ func Run() {
 						case OpGte:
 							b = c >= 0
 						default:
-							BadOp(t)
+							BadOp(op)
 						}
 						if b {
 							f.Cdr().SetCdr(NCdr(f, 3))
@@ -412,12 +412,12 @@ func Run() {
 							Ret(nil)
 						}
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(t.String() + "3 ")
+						fmt.Print(op.String() + "3 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
-						fmt.Print(t.String() + "4 ")
-						switch t.(type) {
+						fmt.Print(op.String() + "4 ")
+						switch op.(type) {
 						case OpEq, OpNe:
 							Ret(true)
 						default:
@@ -430,19 +430,19 @@ func Run() {
 					}
 				case OpEval: // op, ret
 					if f.Cdr() == nil {
-						fmt.Print(t.String() + "0 ")
-						Assert(e.Cdr() != nil, "WTF! Missing argument to "+t.String())
+						fmt.Print(op.String() + "0 ")
+						Assert(e.Cdr() != nil, "WTF! Missing argument to "+op.String())
 						S.SetCdr(&List{&List{e.Cdr().Car(), nil}, C})
 					} else {
-						fmt.Print(t.String() + "1 ")
+						fmt.Print(op.String() + "1 ")
 						S.SetCdr(&List{&List{f.Cdr().Car(), nil}, C.Cdr()})
 					}
 				default:
-					BadOp(t)
+					BadOp(op)
 				}
 			} else if f.Cdr() == nil { // op, ret
 				fmt.Print(sym + "0 ")
-				S.SetCdr(&List{&List{op, nil}, C})
+				S.SetCdr(&List{&List{fn, nil}, C})
 			} else {
 				fmt.Print(sym + "1 ")
 				Ret(f.Cdr().Car())
