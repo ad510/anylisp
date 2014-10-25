@@ -247,35 +247,7 @@ func Run() {
 							BadOp(op)
 						}
 					}
-				case OpSetCar, OpSetCdr, OpSetPair, OpLookup: // op, dest, src
-					if Len(f) < 3 {
-						fmt.Print(op.String() + "0 ")
-						Assert(Len(e) > Len(f), fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", op.String(), Len(f)-1))
-						S.SetCdr(&List{&List{NCar(e, Len(f)), nil}, C})
-					} else if _, ok = op.(OpLookup); ok {
-						fmt.Print(op.String() + "1 ")
-						_, s, ok := Lookup(NCar(f, 1), NCarSymA(f, 2, "WTF! 2nd argument to "+op.String()+" must be a symbol"))
-						if ok {
-							Ret(s)
-						} else {
-							Ret(nil)
-						}
-					} else {
-						fmt.Print(op.String() + "2 ")
-						x := NCarLA(f, 1, "WTF! 1st argument to "+op.String()+" must be a list")
-						switch op.(type) {
-						case OpSetCar:
-							Ret(x.SetCar(NCar(f, 2)))
-						case OpSetCdr:
-							Ret(SetCdrA(x, NCar(f, 2), "WTF! 2nd argument to "+op.String()+" must be a list"))
-						case OpSetPair:
-							y := NCarLA(f, 2, "WTF! 2nd argument to "+op.String()+" must be a list")
-							Ret(x.SetCar(y.Car()).SetCdr(y.Cdr()))
-						default:
-							BadOp(op)
-						}
-					}
-				case OpList, OpSpawn: // op, arg, ret...
+				case OpSetCar, OpSetCdr, OpSetPair, OpList, OpLookup, OpSpawn: // op, arg, ret...
 					if f.Cdr() == nil {
 						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
@@ -285,12 +257,37 @@ func Run() {
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						fmt.Print(op.String() + "2 ")
+						AssertArgs := func(n int64) {
+							Assert(Len(f) == n+2, fmt.Sprintf("WTF! %s takes %d arguments but you gave it %d", op.String(), n, Len(f)-2))
+						}
 						switch op.(type) {
+						case OpSetCar, OpSetCdr, OpSetPair:
+							AssertArgs(2)
+							x := NCarLA(f, 2, "WTF! 1st argument to "+op.String()+" must be a list")
+							switch op.(type) {
+							case OpSetCar:
+								Ret(x.SetCar(NCar(f, 3)))
+							case OpSetCdr:
+								Ret(SetCdrA(x, NCar(f, 3), "WTF! 2nd argument to "+op.String()+" must be a list"))
+							case OpSetPair:
+								y := NCarLA(f, 3, "WTF! 2nd argument to "+op.String()+" must be a list")
+								Ret(x.SetCar(y.Car()).SetCdr(y.Cdr()))
+							default:
+								BadOp(op)
+							}
 						case OpList:
 							SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to "+op.String()+" must be a list")
 							Ret(NCdr(f, 2))
+						case OpLookup:
+							AssertArgs(2)
+							_, s, ok := Lookup(NCar(f, 2), NCarSymA(f, 3, "WTF! 2nd argument to "+op.String()+" must be a symbol"))
+							if ok {
+								Ret(s)
+							} else {
+								Ret(nil)
+							}
 						case OpSpawn:
-							Assert(Len(f) == 4, fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", op.String(), Len(f)-2))
+							AssertArgs(2)
 							name := L2Str(NCar(f, 2), "WTF! 1st argument to " + op.String() + " must be a string")
 							m := "WTF! 2nd argument to " + op.String() + " must be a list of strings"
 							var argv []string
