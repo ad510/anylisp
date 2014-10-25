@@ -32,54 +32,98 @@ type (
 		Sub(x, y *big.Int) *big.Int
 	}
 
-	OpSx      struct{}
-	OpQ       struct{}
-	OpCar     struct{}
-	OpCdr     struct{}
-	OpLast    struct{}
-	OpNCar    struct{}
-	OpNCdr    struct{}
-	OpSetCar  struct{}
-	OpSetCdr  struct{}
-	OpSetPair struct{}
-	OpList    struct{}
-	OpSet     struct{}
-	OpSetAdd  struct{}
-	OpSetRm   struct{}
-	OpLen     struct{}
-	OpIf      struct{}
-	OpAdd     struct{}
-	OpSub     struct{}
-	OpMul     struct{}
-	OpIntDiv  struct{}
-	OpEq      struct{}
-	OpNe      struct{}
-	OpLt      struct{}
-	OpGt      struct{}
-	OpLte     struct{}
-	OpGte     struct{}
-	OpLookup  struct{}
-	OpEval    struct{}
-	OpPr      struct{}
-	OpSpawn   struct{}
+	Op int
+)
+
+const (
+	OpSx Op = iota
+	OpQ
+	OpCar
+	OpCdr
+	OpLast
+	OpNCar
+	OpNCdr
+	OpSetCar
+	OpSetCdr
+	OpSetPair
+	OpList
+	OpSet
+	OpSetAdd
+	OpSetRm
+	OpLen
+	OpIf
+	OpAdd
+	OpSub
+	OpMul
+	OpIntDiv
+	OpEq
+	OpNe
+	OpLt
+	OpGt
+	OpLte
+	OpGte
+	OpLookup
+	OpEval
+	OpPr
+	OpSpawn
+	NOp
 )
 
 var (
+	Names    map[Op]string
 	P        Lister
 	S        Lister
 	TempRoot Lister
 )
 
+func Init() {
+	Names = map[Op]string{
+		OpSx:      "sx'",
+		OpQ:       "q'",
+		OpCar:     ":^'",
+		OpCdr:     ":>'",
+		OpLast:    ":|'",
+		OpNCar:    ":'",
+		OpNCdr:    ":@'",
+		OpSetCar:  "=:^'",
+		OpSetCdr:  "=:>'",
+		OpSetPair: "=:'",
+		OpList:    "lt'",
+		OpSet:     "st'",
+		OpSetAdd:  "$+'",
+		OpSetRm:   "$-'",
+		OpLen:     "ln'",
+		OpIf:      "?'",
+		OpAdd:     "+'",
+		OpSub:     "-'",
+		OpMul:     "*'",
+		OpIntDiv:  "//'",
+		OpEq:      "=='",
+		OpNe:      "!='",
+		OpLt:      "<'",
+		OpGt:      ">'",
+		OpLte:     "<='",
+		OpGte:     ">='",
+		OpLookup:  "lu'",
+		OpEval:    "ev'",
+		OpPr:      "pr'",
+		OpSpawn:   "ps'",
+	}
+}
+
 func Parse(code string) {
-	TempRoot = &List{OpSx{}, nil}
+	TempRoot = &List{}
 	P = &List{TempRoot, nil}
 	S = &List{func() *Set {
 		E := Set{}
-		for _, op := range []fmt.Stringer{OpSx{}, OpQ{}, OpCar{}, OpCdr{}, OpLast{}, OpNCar{}, OpNCdr{}, OpSetCar{}, OpSetCdr{}, OpSetPair{}, OpList{}, OpSet{}, OpSetAdd{}, OpSetRm{}, OpLen{}, OpIf{}, OpAdd{}, OpSub{}, OpMul{}, OpIntDiv{}, OpEq{}, OpNe{}, OpLt{}, OpGt{}, OpLte{}, OpGte{}, OpLookup{}, OpEval{}, OpPr{}, OpSpawn{}} {
-			E[&List{op.String(), &List{op, nil}}] = true // TODO: store values directly in cdr
+		for op := Op(0); op < NOp; op++ {
+			o := op
+			E[&List{Names[op], &List{&o, nil}}] = true // TODO: store values directly in cdr
 		}
 		return &E
 	}(), &List{&List{TempRoot, nil}, nil}}
+	sx, _, _ := Lookup(S.Car(), Names[OpSx])
+	TempRoot.SetCar(sx)
 	(*S.Car().(*Set))[&List{"s'", &List{S, nil}}] = true
 	tok := ""
 	cm := false
@@ -191,11 +235,11 @@ func Run() {
 				fn, _, ok = Lookup(E, sym)
 				Assert(ok, "WTF! Can't call undefined function \""+sym+"\"")
 			}
-			op, ok := fn.(fmt.Stringer)
+			op, ok := fn.(*Op)
 			if ok {
-				switch op.(type) {
+				switch *op {
 				case OpSx, OpPr: // op, arg, ret
-					if _, ok = op.(OpPr); ok && NCdr(f, 2) != nil && NCar(f, 2) != nil {
+					if *op == OpPr && NCdr(f, 2) != nil && NCar(f, 2) != nil {
 						fmt.Print(L2Str(NCar(f, 2), "WTF! "+op.String()+" takes a string"))
 					}
 					if e.Cdr() == nil {
@@ -229,14 +273,14 @@ func Run() {
 						AssertArgs := func(n int64) {
 							Assert(Len(f) == n+2, fmt.Sprintf("WTF! %s takes %d arguments but you gave it %d", op.String(), n, Len(f)-2))
 						}
-						switch op.(type) {
+						switch *op {
 						case OpCar, OpCdr, OpLast:
 							AssertArgs(1)
 							if NCar(f, 2) == nil {
 								Ret(nil)
 							} else {
 								arg := NCarLA(f, 2, "WTF! "+op.String()+" takes a list")
-								switch op.(type) {
+								switch *op {
 								case OpCar:
 									Ret(arg.Car())
 								case OpCdr:
@@ -244,13 +288,13 @@ func Run() {
 								case OpLast:
 									Ret(arg.Last())
 								default:
-									BadOp(op)
+									op.Panic()
 								}
 							}
 						case OpSetCar, OpSetCdr, OpSetPair:
 							AssertArgs(2)
 							x := NCarLA(f, 2, "WTF! 1st argument to "+op.String()+" must be a list")
-							switch op.(type) {
+							switch *op {
 							case OpSetCar:
 								Ret(x.SetCar(NCar(f, 3)))
 							case OpSetCdr:
@@ -259,7 +303,7 @@ func Run() {
 								y := NCarLA(f, 3, "WTF! 2nd argument to "+op.String()+" must be a list")
 								Ret(x.SetCar(y.Car()).SetCdr(y.Cdr()))
 							default:
-								BadOp(op)
+								op.Panic()
 							}
 						case OpList:
 							SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to "+op.String()+" must be a list")
@@ -303,7 +347,7 @@ func Run() {
 								Ret(&List{nil, &List{Str2L(err.Error()), nil}})
 							}
 						default:
-							BadOp(op)
+							op.Panic()
 						}
 					}
 				case OpIf:
@@ -335,7 +379,7 @@ func Run() {
 					if f.Cdr() == nil {
 						fmt.Print(op.String() + "0 ")
 						var cdr Lister
-						switch op.(type) {
+						switch *op {
 						case OpSet:
 							cdr = &List{&Set{}, nil}
 						case OpAdd:
@@ -346,7 +390,7 @@ func Run() {
 						f.SetCdr(&List{e.Cdr(), cdr})
 					} else if NCdr(f, 3) != nil {
 						fmt.Print(op.String() + "1 ")
-						switch op.(type) {
+						switch *op {
 						case OpNCar:
 							x := NCarLA(f, 2, "WTF! "+op.String()+" takes a list")
 							y := NCarIA(f, 3, "WTF! "+op.String()+" index must be an int").Int64()
@@ -364,7 +408,7 @@ func Run() {
 						default:
 							x := NCarIA(f, 2, "WTF! "+op.String()+" takes numbers")
 							y := NCarIA(f, 3, "WTF! "+op.String()+" takes numbers")
-							switch op.(type) {
+							switch *op {
 							case OpAdd:
 								x.Add(x, y)
 							case OpSub:
@@ -376,7 +420,7 @@ func Run() {
 								// this does Euclidean division (like Python and unlike C), and I like that
 								NCdr(f, 2).SetCar(new(big.Int).Div(x, y))
 							default:
-								BadOp(op)
+								op.Panic()
 							}
 						}
 						f.Cdr().Cdr().SetCdr(nil)
@@ -390,19 +434,17 @@ func Run() {
 						Ret(NCar(f, 2))
 					}
 				case OpEq, OpNe, OpLt, OpGt, OpLte, OpGte: // op, arg, ret1, ret2
-					_, eq := op.(OpEq)
-					_, ne := op.(OpNe)
 					if f.Cdr() == nil {
 						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
-					} else if !eq && !ne && NCdr(f, 2) != nil && NCar(f, 2) == nil {
+					} else if *op != OpEq && *op != OpNe && NCdr(f, 2) != nil && NCar(f, 2) == nil {
 						fmt.Print(op.String() + "1 ")
 						Ret(nil)
 					} else if NCdr(f, 3) != nil {
 						fmt.Print(op.String() + "2 ")
 						c := NCarIA(f, 2, "WTF! "+op.String()+" takes numbers").Cmp(NCarIA(f, 3, "WTF! "+op.String()+" takes numbers"))
 						var b bool
-						switch op.(type) {
+						switch *op {
 						case OpEq:
 							b = c == 0
 						case OpNe:
@@ -416,7 +458,7 @@ func Run() {
 						case OpGte:
 							b = c >= 0
 						default:
-							BadOp(op)
+							op.Panic()
 						}
 						if b {
 							f.Cdr().SetCdr(NCdr(f, 3))
@@ -427,18 +469,12 @@ func Run() {
 						fmt.Print(op.String() + "3 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
-					} else {
+					} else if *op != OpEq && *op != OpNe && f.Cdr().Cdr() != nil {
 						fmt.Print(op.String() + "4 ")
-						switch op.(type) {
-						case OpEq, OpNe:
-							Ret(true)
-						default:
-							if f.Cdr().Cdr() != nil {
-								Ret(f.Last().Car())
-							} else {
-								Ret(true)
-							}
-						}
+						Ret(f.Last().Car())
+					} else {
+						fmt.Print(op.String() + "5 ")
+						Ret(true)
 					}
 				case OpEval: // op, ret
 					if f.Cdr() == nil {
@@ -450,7 +486,7 @@ func Run() {
 						S.SetCdr(&List{&List{f.Cdr().Car(), nil}, C.Cdr()})
 					}
 				default:
-					BadOp(op)
+					op.Panic()
 				}
 			} else if f.Cdr() == nil { // op, ret
 				fmt.Print(sym + "0 ")
@@ -487,7 +523,7 @@ func PrintTree(ls interface{}) {
 			PrintTree(e)
 		}
 		fmt.Print("]")
-	case fmt.Stringer:
+	case *Op:
 		fmt.Print(t.String() + " ")
 	case string:
 		fmt.Print(t + " ")
@@ -651,38 +687,11 @@ func (ls *List) Last() Lister {
 	return ls.cdr.Last()
 }
 
-func (o OpSx) String() string      { return "sx'" }
-func (o OpQ) String() string       { return "q'" }
-func (o OpCar) String() string     { return ":^'" }
-func (o OpCdr) String() string     { return ":>'" }
-func (o OpLast) String() string    { return ":|'" }
-func (o OpNCar) String() string    { return ":'" }
-func (o OpNCdr) String() string    { return ":@'" }
-func (o OpSetCar) String() string  { return "=:^'" }
-func (o OpSetCdr) String() string  { return "=:>'" }
-func (o OpSetPair) String() string { return "=:'" }
-func (o OpList) String() string    { return "lt'" }
-func (o OpSet) String() string     { return "st'" }
-func (o OpSetAdd) String() string  { return "$+'" }
-func (o OpSetRm) String() string   { return "$-'" }
-func (o OpLen) String() string     { return "ln'" }
-func (o OpIf) String() string      { return "?'" }
-func (o OpAdd) String() string     { return "+'" }
-func (o OpSub) String() string     { return "-'" }
-func (o OpMul) String() string     { return "*'" }
-func (o OpIntDiv) String() string  { return "//'" }
-func (o OpEq) String() string      { return "=='" }
-func (o OpNe) String() string      { return "!='" }
-func (o OpLt) String() string      { return "<'" }
-func (o OpGt) String() string      { return ">'" }
-func (o OpLte) String() string     { return "<='" }
-func (o OpGte) String() string     { return ">='" }
-func (o OpLookup) String() string  { return "lu'" }
-func (o OpEval) String() string    { return "ev'" }
-func (o OpPr) String() string      { return "pr'" }
-func (o OpSpawn) String() string   { return "ps'" }
+func (op *Op) String() string {
+	return Names[*op]
+}
 
-func BadOp(op fmt.Stringer) {
+func (op *Op) Panic() {
 	Panic("WTF! Unrecognized function \"" + op.String() + "\" (probably an interpreter bug)")
 }
 
