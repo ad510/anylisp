@@ -561,16 +561,16 @@ func Lookup(ns interface{}, k string) (interface{}, Lister, bool) {
 	return nil, nil, false
 }
 
-func L2Str(v interface{}, msg string) string {
+func L2Str(v interface{}, m string) string {
 	if v == nil {
 		return ""
 	}
 	ls, ok := v.(Lister)
-	Assert(ok, msg)
+	Assert(ok, m)
 	s := make([]uint8, Len(ls))
 	for i := 0; ls != nil; i, ls = i+1, ls.Cdr() {
 		c, ok := ls.Car().(Inter)
-		Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1, msg)
+		Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1, m)
 		s[i] = uint8(c.Int64())
 	}
 	return string(s)
@@ -610,27 +610,27 @@ func NCarL(ls Lister, n int64) Lister {
 	return NCarLA(ls, n, "WTF! Requested list element isn't a list")
 }
 
-func NCarLA(ls Lister, n int64, msg string) Lister {
+func NCarLA(ls Lister, n int64, m string) Lister {
 	nCar, ok := NCar(ls, n).(Lister)
-	Assert(ok, msg)
+	Assert(ok, m)
 	return nCar
 }
 
-func NCarSA(ls Lister, n int64, msg string) *Set {
+func NCarSA(ls Lister, n int64, m string) *Set {
 	nCar, ok := NCar(ls, n).(*Set)
-	Assert(ok, msg)
+	Assert(ok, m)
 	return nCar
 }
 
-func NCarSymA(ls Lister, n int64, msg string) string {
+func NCarSymA(ls Lister, n int64, m string) string {
 	nCar, ok := NCar(ls, n).(string)
-	Assert(ok, msg)
+	Assert(ok, m)
 	return nCar
 }
 
-func NCarIA(ls Lister, n int64, msg string) *big.Int {
+func NCarIA(ls Lister, n int64, m string) *big.Int {
 	nCar, ok := NCar(ls, n).(*big.Int)
-	Assert(ok, msg)
+	Assert(ok, m)
 	return nCar
 }
 
@@ -651,14 +651,14 @@ func NCdr(ls Lister, n int64) Lister {
 	return ls
 }
 
-func SetCdrA(ls Lister, v interface{}, msg string) Lister {
+func SetCdrA(ls Lister, v interface{}, m string) Lister {
 	switch t := v.(type) {
 	case nil:
 		return ls.SetCdr(nil)
 	case Lister:
 		return ls.SetCdr(t)
 	}
-	Panic(msg)
+	Panic(m)
 	return nil
 }
 
@@ -695,13 +695,13 @@ func (op *Op) Panic() {
 	Panic("WTF! Unrecognized function \"" + op.String() + "\" (probably an interpreter bug)")
 }
 
-func Assert(cond bool, msg string) {
-	if !cond {
-		Panic(msg)
+func Assert(b bool, m string) {
+	if !b {
+		Panic(m)
 	}
 }
 
-func Panic(msg string) {
-	fmt.Println(msg)
+func Panic(m string) {
+	fmt.Println(m)
 	os.Exit(2)
 }
