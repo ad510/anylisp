@@ -61,6 +61,7 @@ type (
 	OpLookup  struct{}
 	OpEval    struct{}
 	OpPr      struct{}
+	OpSpawn   struct{}
 )
 
 var (
@@ -74,7 +75,7 @@ func Parse(code string) {
 	P = &List{TempRoot, nil}
 	S = &List{func() *Set {
 		E := Set{}
-		for _, op := range []fmt.Stringer{OpSx{}, OpQ{}, OpCar{}, OpCdr{}, OpLast{}, OpNCar{}, OpNCdr{}, OpSetCar{}, OpSetCdr{}, OpSetPair{}, OpList{}, OpSet{}, OpSetAdd{}, OpSetRm{}, OpLen{}, OpIf{}, OpAdd{}, OpSub{}, OpMul{}, OpIntDiv{}, OpEq{}, OpNe{}, OpLt{}, OpGt{}, OpLte{}, OpGte{}, OpLookup{}, OpEval{}, OpPr{}} {
+		for _, op := range []fmt.Stringer{OpSx{}, OpQ{}, OpCar{}, OpCdr{}, OpLast{}, OpNCar{}, OpNCdr{}, OpSetCar{}, OpSetCdr{}, OpSetPair{}, OpList{}, OpSet{}, OpSetAdd{}, OpSetRm{}, OpLen{}, OpIf{}, OpAdd{}, OpSub{}, OpMul{}, OpIntDiv{}, OpEq{}, OpNe{}, OpLt{}, OpGt{}, OpLte{}, OpGte{}, OpLookup{}, OpEval{}, OpPr{}, OpSpawn{}} {
 			E[&List{op.String(), &List{op, nil}}] = true // TODO: store values directly in cdr
 		}
 		return &E
@@ -195,14 +196,7 @@ func Run() {
 				switch op.(type) {
 				case OpSx, OpPr: // op, arg, ret
 					if _, ok = op.(OpPr); ok && NCdr(f, 2) != nil && NCar(f, 2) != nil {
-						s := make([]uint8, Len(NCarLA(f, 2, "WTF! "+op.String()+" takes a string")))
-						for i, arg := 0, NCarL(f, 2); arg != nil; i, arg = i+1, arg.Cdr() {
-							c, ok := arg.Car().(Inter)
-							Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1,
-								"WTF! Bad byte passed to "+op.String())
-							s[i] = uint8(c.Int64())
-						}
-						fmt.Print(string(s))
+						fmt.Print(L2Str(NCar(f, 2), "WTF! "+op.String()+" takes a string"))
 					}
 					if f.Cdr() == nil {
 						fmt.Print(op.String() + "0 ")
@@ -281,7 +275,7 @@ func Run() {
 							BadOp(op)
 						}
 					}
-				case OpList: // op, arg, ret...
+				case OpList, OpSpawn: // op, arg, ret...
 					if f.Cdr() == nil {
 						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
@@ -291,8 +285,31 @@ func Run() {
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						fmt.Print(op.String() + "2 ")
-						SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to "+op.String()+" must be a list")
-						Ret(NCdr(f, 2))
+						switch op.(type) {
+						case OpList:
+							SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to "+op.String()+" must be a list")
+							Ret(NCdr(f, 2))
+						case OpSpawn:
+							Assert(Len(f) == 4, fmt.Sprintf("WTF! %s takes 2 arguments but you gave it %d", op.String(), Len(f)-2))
+							name := L2Str(NCar(f, 2), "WTF! 1st argument to " + op.String() + " must be a string")
+							m := "WTF! 2nd argument to " + op.String() + " must be a list of strings"
+							var argv []string
+							if NCar(f, 3) != nil {
+								argvl := NCarLA(f, 3, m)
+								argv = make([]string, Len(argvl))
+								for i := 0; i < len(argv); i++ {
+									argv[i] = L2Str(NCar(argvl, int64(i)), m)
+								}
+							}
+							p, err := os.StartProcess(name, argv, &os.ProcAttr{}) // TODO: pass in attr
+							if err == nil {
+								Ret(&List{big.NewInt(int64(p.Pid)), &List{}})
+							} else {
+								Ret(&List{nil, &List{Str2L(err.Error()), nil}})
+							}
+						default:
+							BadOp(op)
+						}
 					}
 				case OpIf:
 					// op, if part, then part, ret
@@ -513,6 +530,35 @@ func Lookup(ns interface{}, k string) (interface{}, Lister, bool) {
 	return nil, nil, false
 }
 
+func L2Str(v interface{}, msg string) string {
+	if v == nil {
+		return ""
+	}
+	ls, ok := v.(Lister)
+	Assert(ok, msg)
+	s := make([]uint8, Len(ls))
+	for i := 0; ls != nil; i, ls = i+1, ls.Cdr() {
+		c, ok := ls.Car().(Inter)
+		Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1, msg)
+		s[i] = uint8(c.Int64())
+	}
+	return string(s)
+}
+
+func Str2L(s string) Lister {
+	var f, b Lister
+	for i := 0; i < len(s); i++ {
+		e := &List{big.NewInt(int64(s[i])), nil}
+		if f == nil {
+			f, b = e, e
+		} else {
+			b.SetCdr(e)
+			b = e
+		}
+	}
+	return f
+}
+
 func Len(ls Lister) int64 {
 	if ls == nil {
 		return 0
@@ -639,6 +685,7 @@ func (o OpGte) String() string     { return ">='" }
 func (o OpLookup) String() string  { return "lu'" }
 func (o OpEval) String() string    { return "ev'" }
 func (o OpPr) String() string      { return "pr'" }
+func (o OpSpawn) String() string   { return "ps'" }
 
 func BadOp(op fmt.Stringer) {
 	Panic("WTF! Unrecognized function \"" + op.String() + "\" (probably an interpreter bug)")
