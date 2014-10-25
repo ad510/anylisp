@@ -198,15 +198,18 @@ func Run() {
 					if _, ok = op.(OpPr); ok && NCdr(f, 2) != nil && NCar(f, 2) != nil {
 						fmt.Print(L2Str(NCar(f, 2), "WTF! "+op.String()+" takes a string"))
 					}
-					if f.Cdr() == nil {
+					if e.Cdr() == nil {
 						fmt.Print(op.String() + "0 ")
+						Ret(nil)
+					} else if f.Cdr() == nil {
+						fmt.Print(op.String() + "1 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(op.String() + "1 ")
+						fmt.Print(op.String() + "2 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
-						fmt.Print(op.String() + "2 ")
+						fmt.Print(op.String() + "3 ")
 						Ret(NCar(f, 2))
 					}
 				case OpQ:
