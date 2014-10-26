@@ -242,33 +242,25 @@ func Run() {
 						fmt.Print(L2Str(NCar(f, 2), "WTF! "+op.String()+" takes a string"))
 					}
 					if e.Cdr() == nil {
-						fmt.Print(op.String() + "0 ")
 						Ret(nil)
 					} else if f.Cdr() == nil {
-						fmt.Print(op.String() + "1 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(op.String() + "2 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
-						fmt.Print(op.String() + "3 ")
 						Ret(NCar(f, 2))
 					}
 				case OpQ:
-					fmt.Print(op.String() + "0 ")
 					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
 					Ret(e.Cdr().Car())
 				case OpCar, OpCdr, OpLast, OpSetCar, OpSetCdr, OpSetPair, OpList, OpLen, OpLookup, OpSpawn: // op, arg, ret...
 					if f.Cdr() == nil {
-						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(op.String() + "1 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
-						fmt.Print(op.String() + "2 ")
 						AssertArgs := func(n int64) {
 							Assert(Len(f) == n+2, fmt.Sprintf("WTF! %s takes %d arguments but you gave it %d", op.String(), n, Len(f)-2))
 						}
@@ -353,30 +345,22 @@ func Run() {
 					// op, if part, then part, ret
 					// op, then part, nil, ret
 					if e.Cdr() == nil {
-						fmt.Print(op.String() + "0 ")
 						Ret(nil)
 					} else if NCdr(f, 1) == nil {
-						fmt.Print(op.String() + "1 ")
 						f.SetCdr(&List{e.Cdr(), &List{e.Cdr().Cdr(), nil}})
 					} else if NCdr(f, 3) == nil {
-						fmt.Print(op.String() + "2 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 					} else if NCar(f, 2) == nil {
-						fmt.Print(op.String() + "3 ")
 						Ret(NCar(f, 3))
 					} else if NCar(f, 3) != nil {
-						fmt.Print(op.String() + "4 ")
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), &List{}})
 					} else if NCarL(f, 2).Cdr() == nil {
-						fmt.Print(op.String() + "5 ")
 						Ret(nil)
 					} else {
-						fmt.Print(op.String() + "6 ")
 						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
 					}
 				case OpNCar, OpNCdr, OpSet, OpSetAdd, OpSetRm, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 					if f.Cdr() == nil {
-						fmt.Print(op.String() + "0 ")
 						var cdr Lister
 						switch *op {
 						case OpSet:
@@ -388,7 +372,6 @@ func Run() {
 						}
 						f.SetCdr(&List{e.Cdr(), cdr})
 					} else if NCdr(f, 3) != nil {
-						fmt.Print(op.String() + "1 ")
 						switch *op {
 						case OpNCar:
 							x := NCarLA(f, 2, "WTF! "+op.String()+" takes a list")
@@ -424,23 +407,18 @@ func Run() {
 						}
 						f.Cdr().Cdr().SetCdr(nil)
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(op.String() + "2 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else {
-						fmt.Print(op.String() + "3 ")
 						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+op.String())
 						Ret(NCar(f, 2))
 					}
 				case OpEq, OpNe, OpLt, OpGt, OpLte, OpGte: // op, arg, ret1, ret2
 					if f.Cdr() == nil {
-						fmt.Print(op.String() + "0 ")
 						f.SetCdr(&List{e.Cdr(), nil})
 					} else if *op != OpEq && *op != OpNe && NCdr(f, 2) != nil && NCar(f, 2) == nil {
-						fmt.Print(op.String() + "1 ")
 						Ret(nil)
 					} else if NCdr(f, 3) != nil {
-						fmt.Print(op.String() + "2 ")
 						c := NCarIA(f, 2, "WTF! "+op.String()+" takes numbers").Cmp(NCarIA(f, 3, "WTF! "+op.String()+" takes numbers"))
 						var b bool
 						switch *op {
@@ -465,30 +443,24 @@ func Run() {
 							Ret(nil)
 						}
 					} else if f.Cdr().Car() != nil {
-						fmt.Print(op.String() + "3 ")
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.Cdr().SetCar(NCarL(f, 1).Cdr())
 					} else if *op != OpEq && *op != OpNe && f.Cdr().Cdr() != nil {
-						fmt.Print(op.String() + "4 ")
 						Ret(f.Last().Car())
 					} else {
-						fmt.Print(op.String() + "5 ")
 						Ret(true)
 					}
 				default:
 					op.Panic()
 				}
 			} else if f.Cdr().Cdr() == nil { // e, op, ret
-				fmt.Print("e0 ")
 				S.SetCdr(&List{&List{f.Cdr().Car(), nil}, C})
 			} else {
-				fmt.Print("e1 ")
 				Ret(NCar(f, 2))
 			}
 		case *Set:
 			Panic("TODO: evaluate the set")
 		default:
-			fmt.Print("r ")
 			Ret(f.Car())
 		}
 	}
