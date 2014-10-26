@@ -32,6 +32,8 @@ type (
 		Sub(x, y *big.Int) *big.Int
 	}
 
+	Sym string
+
 	Op int
 )
 
@@ -70,14 +72,14 @@ const (
 )
 
 var (
-	Names    map[Op]string
+	Names    map[Op]Sym
 	P        Lister
 	S        Lister
 	TempRoot Lister
 )
 
 func Init() {
-	Names = map[Op]string{
+	Names = map[Op]Sym{
 		OpSx:      "sx'",
 		OpQ:       "q'",
 		OpCar:     ":^'",
@@ -117,14 +119,16 @@ func Parse(code string) {
 	S = &List{func() *Set {
 		E := Set{}
 		for op := Op(0); op < NOp; op++ {
+			name := Names[op]
 			o := op
-			E[&List{Names[op], &List{&o, nil}}] = true // TODO: store values directly in cdr
+			E[&List{&name, &List{&o, nil}}] = true // TODO: store values directly in cdr
 		}
 		return &E
 	}(), &List{&List{TempRoot, nil}, nil}}
 	sx, _, _ := Lookup(S.Car(), Names[OpSx])
 	TempRoot.SetCar(sx)
-	(*S.Car().(*Set))[&List{"s'", &List{S, nil}}] = true
+	symS := Sym("s'")
+	(*S.Car().(*Set))[&List{&symS, &List{S, nil}}] = true
 	tok := ""
 	cm := false
 	for i := 0; i < len(code); i++ {
@@ -172,7 +176,8 @@ func Parse(code string) {
 					Assert(err == nil, "Parse WTF! Bad number")
 					a = bi
 				} else { // symbol
-					a = tok
+					sym := Sym(tok)
+					a = &sym
 				}
 				ls := &List{a, nil}
 				switch t := P.Car().(type) {
@@ -223,17 +228,17 @@ func Run() {
 		f, ok := C.Car().(Lister)
 		Assert(ok, "WTF! Bad stack frame")
 		switch e := f.Car().(type) {
-		case string:
+		case *Sym:
 			fmt.Print("e ")
-			v, _, ok := Lookup(E, e)
-			Assert(ok, "WTF! \""+e+"\" not defined")
+			v, _, ok := Lookup(E, *e)
+			Assert(ok, "WTF! \""+string(*e)+"\" not defined")
 			Ret(v)
 		case Lister:
 			fn := e.Car()
-			sym, ok := fn.(string)
+			sym, ok := fn.(*Sym)
 			if ok {
-				fn, _, ok = Lookup(E, sym)
-				Assert(ok, "WTF! Can't call undefined function \""+sym+"\"")
+				fn, _, ok = Lookup(E, *sym)
+				Assert(ok, "WTF! Can't call undefined function \""+string(*sym)+"\"")
 			}
 			op, ok := fn.(*Op)
 			if ok {
@@ -322,7 +327,7 @@ func Run() {
 							}
 						case OpLookup:
 							AssertArgs(2)
-							_, s, ok := Lookup(NCar(f, 2), NCarSymA(f, 3, "WTF! 2nd argument to "+op.String()+" must be a symbol"))
+							_, s, ok := Lookup(NCar(f, 2), *NCarSymA(f, 3, "WTF! 2nd argument to "+op.String()+" must be a symbol"))
 							if ok {
 								Ret(s)
 							} else {
@@ -489,10 +494,10 @@ func Run() {
 					op.Panic()
 				}
 			} else if f.Cdr() == nil { // op, ret
-				fmt.Print(sym + "0 ")
+				fmt.Print(string(*sym) + "0 ")
 				S.SetCdr(&List{&List{fn, nil}, C})
 			} else {
-				fmt.Print(sym + "1 ")
+				fmt.Print(string(*sym) + "1 ")
 				Ret(f.Cdr().Car())
 			}
 		case *Set:
@@ -525,19 +530,19 @@ func PrintTree(ls interface{}) {
 		fmt.Print("]")
 	case *Op:
 		fmt.Print(t.String() + " ")
-	case string:
-		fmt.Print(t + " ")
+	case *Sym:
+		fmt.Print(string(*t) + " ")
 	default:
 		Panic("Unrecognized object in tree")
 	}
 }
 
-func Lookup(ns interface{}, k string) (interface{}, Lister, bool) {
+func Lookup(ns interface{}, k Sym) (interface{}, Lister, bool) {
 	switch t := ns.(type) {
 	case Lister:
-		k2, ok := t.Car().(string)
+		k2, ok := t.Car().(*Sym)
 		if ok {
-			if k == k2 {
+			if k == *k2 {
 				return t.Cdr().Car(), &List{ns, nil}, true
 			}
 		} else {
@@ -622,8 +627,8 @@ func NCarSA(ls Lister, n int64, m string) *Set {
 	return nCar
 }
 
-func NCarSymA(ls Lister, n int64, m string) string {
-	nCar, ok := NCar(ls, n).(string)
+func NCarSymA(ls Lister, n int64, m string) *Sym {
+	nCar, ok := NCar(ls, n).(*Sym)
 	Assert(ok, m)
 	return nCar
 }
@@ -688,7 +693,7 @@ func (ls *List) Last() Lister {
 }
 
 func (op *Op) String() string {
-	return Names[*op]
+	return string(Names[*op])
 }
 
 func (op *Op) Panic() {
