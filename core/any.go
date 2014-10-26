@@ -65,7 +65,6 @@ const (
 	OpLte
 	OpGte
 	OpLookup
-	OpEval
 	OpPr
 	OpSpawn
 	NOp
@@ -107,7 +106,6 @@ func Init() {
 		OpLte:     "<='",
 		OpGte:     ">='",
 		OpLookup:  "lu'",
-		OpEval:    "ev'",
 		OpPr:      "pr'",
 		OpSpawn:   "ps'",
 	}
@@ -229,19 +227,15 @@ func Run() {
 		Assert(ok, "WTF! Bad stack frame")
 		switch e := f.Car().(type) {
 		case *Sym:
-			fmt.Print("e ")
+			fmt.Print(string(*e) + " ")
 			v, _, ok := Lookup(E, *e)
 			Assert(ok, "WTF! \""+string(*e)+"\" not defined")
 			Ret(v)
 		case Lister:
-			fn := e.Car()
-			sym, ok := fn.(*Sym)
-			if ok {
-				fn, _, ok = Lookup(E, *sym)
-				Assert(ok, "WTF! Can't call undefined function \""+string(*sym)+"\"")
-			}
-			op, ok := fn.(*Op)
-			if ok {
+			if f.Cdr() == nil {
+				S.SetCdr(&List{&List{e.Car(), nil}, C})
+			} else if op, ok := f.Cdr().Car().(*Op); ok {
+				f = f.Cdr()
 				switch *op {
 				case OpSx, OpPr: // op, arg, ret
 					if *op == OpPr && NCdr(f, 2) != nil && NCar(f, 2) != nil {
@@ -262,7 +256,7 @@ func Run() {
 						Ret(NCar(f, 2))
 					}
 				case OpQ:
-					fmt.Print(op.String() + " ")
+					fmt.Print(op.String() + "0 ")
 					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
 					Ret(e.Cdr().Car())
 				case OpCar, OpCdr, OpLast, OpSetCar, OpSetCdr, OpSetPair, OpList, OpLen, OpLookup, OpSpawn: // op, arg, ret...
@@ -481,24 +475,15 @@ func Run() {
 						fmt.Print(op.String() + "5 ")
 						Ret(true)
 					}
-				case OpEval: // op, ret
-					if f.Cdr() == nil {
-						fmt.Print(op.String() + "0 ")
-						Assert(e.Cdr() != nil, "WTF! Missing argument to "+op.String())
-						S.SetCdr(&List{&List{e.Cdr().Car(), nil}, C})
-					} else {
-						fmt.Print(op.String() + "1 ")
-						S.SetCdr(&List{&List{f.Cdr().Car(), nil}, C.Cdr()})
-					}
 				default:
 					op.Panic()
 				}
-			} else if f.Cdr() == nil { // op, ret
-				fmt.Print(string(*sym) + "0 ")
-				S.SetCdr(&List{&List{fn, nil}, C})
+			} else if f.Cdr().Cdr() == nil { // e, op, ret
+				fmt.Print("e0 ")
+				S.SetCdr(&List{&List{f.Cdr().Car(), nil}, C})
 			} else {
-				fmt.Print(string(*sym) + "1 ")
-				Ret(f.Cdr().Car())
+				fmt.Print("e1 ")
+				Ret(NCar(f, 2))
 			}
 		case *Set:
 			Panic("TODO: evaluate the set")
