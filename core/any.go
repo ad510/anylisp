@@ -11,14 +11,16 @@ type (
 	Lister interface {
 		Car() interface{}
 		SetCar(v interface{}) Lister
-		Cdr() Lister
-		SetCdr(v Lister) Lister
+		Cdr() interface{}
+		CdrL() Lister
+		CdrLA(m string) Lister
+		SetCdr(v interface{}) Lister
 		Last() Lister
 	}
 
 	List struct {
 		car interface{}
-		cdr Lister
+		cdr interface{}
 	}
 
 	Set map[interface{}]bool
@@ -119,14 +121,14 @@ func Parse(code string) {
 		for op := Op(0); op < NOp; op++ {
 			name := Names[op]
 			o := op
-			E[&List{&name, &List{&o, nil}}] = true // TODO: store values directly in cdr
+			E[&List{&name, &o}] = true
 		}
 		return &E
 	}(), &List{&List{TempRoot, nil}, nil}}
 	sx, _, _ := Lookup(S.Car(), Names[OpSx])
 	TempRoot.SetCar(sx)
 	symS := Sym("s'")
-	(*S.Car().(*Set))[&List{&symS, &List{S, nil}}] = true
+	(*S.Car().(*Set))[&List{&symS, S}] = true
 	tok := ""
 	cm := false
 	for i := 0; i < len(code); i++ {
@@ -146,15 +148,15 @@ func Parse(code string) {
 				if P.Car() != nil {
 					_, ok := P.Car().(Lister)
 					Assert(ok, "Parse WTF! Unexpected )")
-				} else if set, ok := P.Cdr().Car().(*Set); ok {
+				} else if set, ok := P.CdrL().Car().(*Set); ok {
 					(*set)[nil] = true
 				}
-				P = P.Cdr()
+				P = P.CdrL()
 			} else if tok == "]" {
 				Assert(P.Cdr() != nil, "Parse WTF! Too many ]s")
 				_, ok := P.Car().(*Set)
 				Assert(ok, "Parse WTF! Unexpected ]")
-				P = P.Cdr()
+				P = P.CdrL()
 			} else if len(tok) > 0 {
 				var a interface{}
 				if tok == "(" {
@@ -180,7 +182,7 @@ func Parse(code string) {
 				ls := &List{a, nil}
 				switch t := P.Car().(type) {
 				case nil:
-					switch t2 := P.Cdr().Car().(type) {
+					switch t2 := P.CdrL().Car().(type) {
 					case Lister:
 						t2.SetCar(ls) // 1st token in list
 					case *Set:
@@ -214,7 +216,7 @@ func Parse(code string) {
 func Run() {
 	for S.Cdr() != nil {
 		E := S.Car()
-		C := S.Cdr()
+		C := S.CdrLA("WTF! Bad stack")
 		Ret := func(v interface{}) {
 			if C == S.Cdr() {
 				if C.Cdr() != nil {
@@ -234,32 +236,31 @@ func Run() {
 		case Lister:
 			if f.Cdr() == nil {
 				S.SetCdr(&List{&List{e.Car(), nil}, C})
-			} else if op, ok := f.Cdr().Car().(*Op); ok {
-				f = f.Cdr()
+			} else if op, ok := f.CdrL().Car().(*Op); ok {
+				f = f.CdrL()
 				switch *op {
 				case OpSx, OpPr: // op, arg, ret
-					if *op == OpPr && NCdr(f, 2) != nil && NCar(f, 2) != nil {
+					if *op == OpPr && NCdr(f, 2) != nil {
 						fmt.Print(L2Str(NCar(f, 2), "WTF! "+op.String()+" takes a string"))
 					}
 					if e.Cdr() == nil {
 						Ret(nil)
 					} else if f.Cdr() == nil {
 						f.SetCdr(&List{e.Cdr(), nil})
-					} else if f.Cdr().Car() != nil {
+					} else if f.CdrL().Car() != nil {
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 						f.SetCdr(&List{NCarL(f, 1).Cdr(), nil})
 					} else {
 						Ret(NCar(f, 2))
 					}
 				case OpQ:
-					Assert(e.Cdr() != nil, "WTF! Missing argument to quote")
-					Ret(e.Cdr().Car())
+					Ret(e.CdrLA("WTF! Missing argument to quote").Car())
 				case OpCar, OpCdr, OpLast, OpSetCar, OpSetCdr, OpSetPair, OpList, OpLen, OpLookup, OpSpawn: // op, arg, ret...
 					if f.Cdr() == nil {
 						f.SetCdr(&List{e.Cdr(), nil})
-					} else if f.Cdr().Car() != nil {
+					} else if f.CdrL().Car() != nil {
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
-						f.Cdr().SetCar(NCarL(f, 1).Cdr())
+						f.CdrL().SetCar(NCarL(f, 1).Cdr())
 					} else {
 						AssertArgs := func(n int64) {
 							Assert(Len(f) == n+2, fmt.Sprintf("WTF! %s takes %d arguments but you gave it %d", op.String(), n, Len(f)-2))
@@ -289,7 +290,7 @@ func Run() {
 							case OpSetCar:
 								Ret(x.SetCar(NCar(f, 3)))
 							case OpSetCdr:
-								Ret(SetCdrA(x, NCar(f, 3), "WTF! 2nd argument to "+op.String()+" must be a list"))
+								Ret(x.SetCdr(NCar(f, 3)))
 							case OpSetPair:
 								y := NCarLA(f, 3, "WTF! 2nd argument to "+op.String()+" must be a list")
 								Ret(x.SetCar(y.Car()).SetCdr(y.Cdr()))
@@ -297,7 +298,7 @@ func Run() {
 								op.Panic()
 							}
 						case OpList:
-							SetCdrA(NCdr(f, -2), f.Last().Car(), "WTF! Last argument to "+op.String()+" must be a list")
+							NCdrL(f, -2).SetCdr(f.Last().Car())
 							Ret(NCdr(f, 2))
 						case OpLen:
 							AssertArgs(1)
@@ -347,7 +348,7 @@ func Run() {
 					if e.Cdr() == nil {
 						Ret(nil)
 					} else if NCdr(f, 1) == nil {
-						f.SetCdr(&List{e.Cdr(), &List{e.Cdr().Cdr(), nil}})
+						f.SetCdr(&List{e.Cdr(), &List{e.CdrL().Cdr(), nil}})
 					} else if NCdr(f, 3) == nil {
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
 					} else if NCar(f, 2) == nil {
@@ -357,7 +358,7 @@ func Run() {
 					} else if NCarL(f, 2).Cdr() == nil {
 						Ret(nil)
 					} else {
-						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).Cdr().Cdr(), nil}})
+						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).CdrL().Cdr(), nil}})
 					}
 				case OpNCar, OpNCdr, OpSet, OpSetAdd, OpSetRm, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 					if f.Cdr() == nil {
@@ -376,11 +377,11 @@ func Run() {
 						case OpNCar:
 							x := NCarLA(f, 2, "WTF! "+op.String()+" takes a list")
 							y := NCarIA(f, 3, "WTF! "+op.String()+" index must be an int").Int64()
-							NCdr(f, 2).SetCar(NCar(x, y))
+							NCdrL(f, 2).SetCar(NCar(x, y))
 						case OpNCdr:
 							x := NCarLA(f, 2, "WTF! "+op.String()+" takes a list")
 							y := NCarIA(f, 3, "WTF! "+op.String()+" index must be an int").Int64()
-							NCdr(f, 2).SetCar(NCdr(x, y))
+							NCdrL(f, 2).SetCar(NCdr(x, y))
 						case OpSet, OpSetAdd:
 							x := NCarSA(f, 2, "WTF! 1st argument to "+op.String()+" must be a set")
 							(*x)[NCar(f, 3)] = true
@@ -394,24 +395,25 @@ func Run() {
 							case OpAdd:
 								x.Add(x, y)
 							case OpSub:
-								NCdr(f, 2).SetCar(new(big.Int).Sub(x, y))
+								NCdrL(f, 2).SetCar(new(big.Int).Sub(x, y))
 							case OpMul:
 								x.Mul(x, y)
 							case OpIntDiv:
 								Assert(y.Sign() != 0, "WTF! Int division by 0")
 								// this does Euclidean division (like Python and unlike C), and I like that
-								NCdr(f, 2).SetCar(new(big.Int).Div(x, y))
+								NCdrL(f, 2).SetCar(new(big.Int).Div(x, y))
 							default:
 								op.Panic()
 							}
 						}
-						f.Cdr().Cdr().SetCdr(nil)
-					} else if f.Cdr().Car() != nil {
+						f.CdrL().CdrL().SetCdr(nil)
+					} else if f.CdrL().Car() != nil {
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
-						f.Cdr().SetCar(NCarL(f, 1).Cdr())
+						f.CdrL().SetCar(NCarL(f, 1).Cdr())
 					} else {
-						Assert(f.Cdr().Cdr() != nil, "WTF! Missing argument to "+op.String())
-						Ret(NCar(f, 2))
+						retL, ok := f.CdrL().Cdr().(Lister)
+						Assert(ok, "WTF! Missing argument to "+op.String())
+						Ret(retL.Car())
 					}
 				case OpEq, OpNe, OpLt, OpGt, OpLte, OpGte: // op, arg, ret1, ret2
 					if f.Cdr() == nil {
@@ -438,14 +440,14 @@ func Run() {
 							op.Panic()
 						}
 						if b {
-							f.Cdr().SetCdr(NCdr(f, 3))
+							f.CdrL().SetCdr(NCdr(f, 3))
 						} else {
 							Ret(nil)
 						}
-					} else if f.Cdr().Car() != nil {
+					} else if f.CdrL().Car() != nil {
 						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
-						f.Cdr().SetCar(NCarL(f, 1).Cdr())
-					} else if *op != OpEq && *op != OpNe && f.Cdr().Cdr() != nil {
+						f.CdrL().SetCar(NCarL(f, 1).Cdr())
+					} else if *op != OpEq && *op != OpNe && f.CdrL().Cdr() != nil {
 						Ret(f.Last().Car())
 					} else {
 						Ret(true)
@@ -453,8 +455,8 @@ func Run() {
 				default:
 					op.Panic()
 				}
-			} else if f.Cdr().Cdr() == nil { // e, op, ret
-				S.SetCdr(&List{&List{f.Cdr().Car(), nil}, C})
+			} else if f.CdrL().Cdr() == nil { // e, op, ret
+				S.SetCdr(&List{&List{f.CdrL().Car(), nil}, C})
 			} else {
 				Ret(NCar(f, 2))
 			}
@@ -500,7 +502,7 @@ func Lookup(ns interface{}, k Sym) (interface{}, Lister, bool) {
 		k2, ok := t.Car().(*Sym)
 		if ok {
 			if k == *k2 {
-				return t.Cdr().Car(), &List{ns, nil}, true
+				return t.Cdr(), &List{ns, nil}, true
 			}
 		} else {
 			v, s, ok := Lookup(t.Car(), k)
@@ -524,16 +526,13 @@ func Lookup(ns interface{}, k Sym) (interface{}, Lister, bool) {
 }
 
 func L2Str(v interface{}, m string) string {
-	if v == nil {
-		return ""
-	}
-	ls, ok := v.(Lister)
-	Assert(ok, m)
+	ls, _ := v.(Lister)
 	s := make([]uint8, Len(ls))
-	for i := 0; ls != nil; i, ls = i+1, ls.Cdr() {
+	for i := 0; ls != nil; i++ {
 		c, ok := ls.Car().(Inter)
 		Assert(ok && c.Sign() >= 0 && c.Cmp(big.NewInt(256)) == -1, m)
 		s[i] = uint8(c.Int64())
+		ls, _ = ls.Cdr().(Lister)
 	}
 	return string(s)
 }
@@ -556,16 +555,15 @@ func Len(ls Lister) int64 {
 	if ls == nil {
 		return 0
 	}
-	if ls.Cdr() == nil {
+	cdr, ok := ls.Cdr().(Lister)
+	if !ok {
 		return 1
 	}
-	return Len(ls.Cdr()) + 1
+	return Len(cdr) + 1
 }
 
 func NCar(ls Lister, n int64) interface{} {
-	nCdr := NCdr(ls, n)
-	Assert(nCdr != nil, "WTF! Out of bounds when calling :'")
-	return nCdr.Car()
+	return NCdrL(ls, n).Car()
 }
 
 func NCarL(ls Lister, n int64) Lister {
@@ -596,13 +594,12 @@ func NCarIA(ls Lister, n int64, m string) *big.Int {
 	return nCar
 }
 
-func NCdr(ls Lister, n int64) Lister {
-	if ls == nil {
-		return nil
+func NCdr(v interface{}, n int64) interface{} {
+	if v == nil || n == 0 {
+		return v
 	}
-	if n > 0 {
-		return NCdr(ls.Cdr(), n-1)
-	}
+	ls, ok := v.(Lister)
+	Assert(ok, "WTF! Bad rest pointer in list")
 	if n < 0 {
 		n2 := Len(ls) + n
 		if n2 < 0 {
@@ -610,18 +607,13 @@ func NCdr(ls Lister, n int64) Lister {
 		}
 		return NCdr(ls, n2)
 	}
-	return ls
+	return NCdr(ls.Cdr(), n-1)
 }
 
-func SetCdrA(ls Lister, v interface{}, m string) Lister {
-	switch t := v.(type) {
-	case nil:
-		return ls.SetCdr(nil)
-	case Lister:
-		return ls.SetCdr(t)
-	}
-	Panic(m)
-	return nil
+func NCdrL(v interface{}, n int64) Lister {
+	nCdr, ok := NCdr(v, n).(Lister)
+	Assert(ok, "WTF! Out of bounds")
+	return nCdr
 }
 
 func (ls *List) Car() interface{} {
@@ -633,20 +625,31 @@ func (ls *List) SetCar(v interface{}) Lister {
 	return ls
 }
 
-func (ls *List) Cdr() Lister {
+func (ls *List) Cdr() interface{} {
 	return ls.cdr
 }
 
-func (ls *List) SetCdr(v Lister) Lister {
+func (ls *List) CdrL() Lister {
+	return ls.CdrLA("WTF! Rest pointer doesn't point to a list")
+}
+
+func (ls *List) CdrLA(m string) Lister {
+	cdr, ok := ls.cdr.(Lister)
+	Assert(ok, m)
+	return cdr
+}
+
+func (ls *List) SetCdr(v interface{}) Lister {
 	ls.cdr = v
 	return ls
 }
 
 func (ls *List) Last() Lister {
-	if ls.cdr == nil {
-		return ls
+	cdr, ok := ls.cdr.(Lister)
+	if ok {
+		return cdr.Last()
 	}
-	return ls.cdr.Last()
+	return ls
 }
 
 func (op *Op) String() string {
