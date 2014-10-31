@@ -40,7 +40,7 @@ type (
 )
 
 const (
-	OpSx Op = iota
+	OpSv Op = iota
 	OpQ
 	OpCar
 	OpCdr
@@ -81,7 +81,7 @@ var (
 
 func Init() {
 	Names = map[Op]Sym{
-		OpSx:      "sx'",
+		OpSv:      "sv'",
 		OpQ:       "q'",
 		OpCar:     ":^'",
 		OpCdr:     ":>'",
@@ -125,8 +125,8 @@ func Parse(code string) {
 		}
 		return &E
 	}(), &List{&List{TempRoot, nil}, nil}}
-	sx, _, _ := Lookup(S.Car(), Names[OpSx])
-	TempRoot.SetCar(sx)
+	sv, _, _ := Lookup(S.Car(), Names[OpSv])
+	TempRoot.SetCar(sv)
 	symS := Sym("s'")
 	(*S.Car().(*Set))[&List{&symS, S}] = true
 	tok := ""
@@ -239,7 +239,7 @@ func Run() {
 			} else if op, ok := f.CdrL().Car().(*Op); ok {
 				f = f.CdrL()
 				switch *op {
-				case OpSx, OpPr: // op, arg, ret
+				case OpSv, OpPr: // op, arg, ret
 					if *op == OpPr && NCdr(f, 2) != nil {
 						fmt.Print(L2Str(NCar(f, 2), "WTF! "+op.String()+" takes a string"))
 					}
