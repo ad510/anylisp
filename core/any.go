@@ -41,21 +41,24 @@ type (
 
 const (
 	OpSv Op = iota
+	OpPr
 	OpQ
+	OpIf
 	OpCar
 	OpCdr
 	OpLast
-	OpNCar
-	OpNCdr
 	OpSetCar
 	OpSetCdr
 	OpSetPair
 	OpList
+	OpLen
+	OpLookup
+	OpSpawn
+	OpNCar
+	OpNCdr
 	OpSet
 	OpSetAdd
 	OpSetRm
-	OpLen
-	OpIf
 	OpAdd
 	OpSub
 	OpMul
@@ -66,9 +69,6 @@ const (
 	OpGt
 	OpLte
 	OpGte
-	OpLookup
-	OpPr
-	OpSpawn
 	NOp
 )
 
@@ -82,21 +82,24 @@ var (
 func Init() {
 	Names = map[Op]Sym{
 		OpSv:      "sv'",
+		OpPr:      "pr'",
 		OpQ:       "q'",
+		OpIf:      "?'",
 		OpCar:     ":^'",
 		OpCdr:     ":>'",
 		OpLast:    ":|'",
-		OpNCar:    ":'",
-		OpNCdr:    ":@'",
 		OpSetCar:  "=:^'",
 		OpSetCdr:  "=:>'",
 		OpSetPair: "=:'",
 		OpList:    "lt'",
+		OpLen:     "ln'",
+		OpLookup:  "lu'",
+		OpSpawn:   "ps'",
+		OpNCar:    ":'",
+		OpNCdr:    ":@'",
 		OpSet:     "st'",
 		OpSetAdd:  "$+'",
 		OpSetRm:   "$-'",
-		OpLen:     "ln'",
-		OpIf:      "?'",
 		OpAdd:     "+'",
 		OpSub:     "-'",
 		OpMul:     "*'",
@@ -107,9 +110,6 @@ func Init() {
 		OpGt:      ">'",
 		OpLte:     "<='",
 		OpGte:     ">='",
-		OpLookup:  "lu'",
-		OpPr:      "pr'",
-		OpSpawn:   "ps'",
 	}
 }
 
@@ -255,6 +255,24 @@ func Run() {
 					}
 				case OpQ:
 					Ret(e.CdrLA("WTF! Missing argument to quote").Car())
+				case OpIf:
+					// op, if part, then part, ret
+					// op, then part, nil, ret
+					if e.Cdr() == nil {
+						Ret(nil)
+					} else if NCdr(f, 1) == nil {
+						f.SetCdr(&List{e.Cdr(), &List{e.CdrL().Cdr(), nil}})
+					} else if NCdr(f, 3) == nil {
+						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
+					} else if NCar(f, 2) == nil {
+						Ret(NCar(f, 3))
+					} else if NCar(f, 3) != nil {
+						f.SetCdr(&List{NCarL(f, 1).Cdr(), &List{}})
+					} else if NCarL(f, 2).Cdr() == nil {
+						Ret(nil)
+					} else {
+						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).CdrL().Cdr(), nil}})
+					}
 				case OpCar, OpCdr, OpLast, OpSetCar, OpSetCdr, OpSetPair, OpList, OpLen, OpLookup, OpSpawn: // op, arg, ret...
 					if f.Cdr() == nil {
 						f.SetCdr(&List{e.Cdr(), nil})
@@ -341,24 +359,6 @@ func Run() {
 						default:
 							op.Panic()
 						}
-					}
-				case OpIf:
-					// op, if part, then part, ret
-					// op, then part, nil, ret
-					if e.Cdr() == nil {
-						Ret(nil)
-					} else if NCdr(f, 1) == nil {
-						f.SetCdr(&List{e.Cdr(), &List{e.CdrL().Cdr(), nil}})
-					} else if NCdr(f, 3) == nil {
-						S.SetCdr(&List{&List{NCarL(f, 1).Car(), nil}, C})
-					} else if NCar(f, 2) == nil {
-						Ret(NCar(f, 3))
-					} else if NCar(f, 3) != nil {
-						f.SetCdr(&List{NCarL(f, 1).Cdr(), &List{}})
-					} else if NCarL(f, 2).Cdr() == nil {
-						Ret(nil)
-					} else {
-						f.SetCdr(&List{NCarL(f, 2).Cdr(), &List{NCarL(f, 2).CdrL().Cdr(), nil}})
 					}
 				case OpNCar, OpNCdr, OpSet, OpSetAdd, OpSetRm, OpAdd, OpSub, OpMul, OpIntDiv: // op, arg, sum, ret
 					if f.Cdr() == nil {
