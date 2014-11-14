@@ -511,6 +511,8 @@ func Lookup(ns interface{}, k Sym) (interface{}, interface{}, bool) {
 }
 
 func L2Str(ls interface{}, m string) string {
+	_, ok := ls.(*List)
+	Assert(ok || ls == nil, m)
 	s := make([]uint8, Len(ls))
 	for i := 0; ls != nil; i++ {
 		c, ok := Car(ls).(Inter)
