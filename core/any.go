@@ -106,19 +106,19 @@ func Init() {
 func Parse(code string) {
 	TempRoot = &List{}
 	P = &List{TempRoot, nil}
-	S = &List{func() *Set {
+	S = &List{func() Set {
 		E := Set{}
 		for op := Op(0); op < NOp; op++ {
 			name := Names[op]
 			o := op
 			E[&List{&name, &o}] = true
 		}
-		return &E
+		return E
 	}(), &List{&List{TempRoot, nil}, nil}}
 	sv, _, _ := Lookup(Car(S), Names[OpSv])
 	SCar(TempRoot, sv)
 	symS := Sym("s'")
-	(*Car(S).(*Set))[&List{&symS, S}] = true
+	Car(S).(Set)[&List{&symS, S}] = true
 	tok := ""
 	cm := false
 	for i := 0; i < len(code); i++ {
@@ -138,13 +138,13 @@ func Parse(code string) {
 				if Car(P) != nil {
 					_, ok := Car(P).(*List)
 					Assert(ok, "Parse WTF! Unexpected )")
-				} else if set, ok := Car(Cdr(P)).(*Set); ok {
-					(*set)[nil] = true
+				} else if set, ok := Car(Cdr(P)).(Set); ok {
+					set[nil] = true
 				}
 				P = Cdr(P)
 			} else if tok == "]" {
 				Assert(Cdr(P) != nil, "Parse WTF! Too many ]s")
-				_, ok := Car(P).(*Set)
+				_, ok := Car(P).(Set)
 				Assert(ok, "Parse WTF! Unexpected ]")
 				P = Cdr(P)
 			} else if len(tok) > 0 {
@@ -152,7 +152,7 @@ func Parse(code string) {
 				if tok == "(" {
 					a = nil
 				} else if tok == "[" {
-					a = &Set{}
+					a = Set{}
 				} else if tok[0] == '\'' && len(tok) > 1 && func() bool {
 					for j := 1; j < len(tok); j++ {
 						if !(tok[j] == '-' || (tok[j] >= '0' && tok[j] <= '9') || (tok[j] >= 'a' && tok[j] <= 'f')) {
@@ -175,8 +175,8 @@ func Parse(code string) {
 					switch t2 := Car(Cdr(P)).(type) {
 					case *List:
 						SCar(t2, ls) // 1st token in list
-					case *Set:
-						(*t2)[ls] = true
+					case Set:
+						t2[ls] = true
 					default:
 						Panic("Parse WTF! Bad stack (probably an interpreter bug)")
 					}
@@ -184,9 +184,9 @@ func Parse(code string) {
 				case *List:
 					SCdr(t, ls)
 					SCar(P, ls)
-				case *Set:
+				case Set:
 					if tok != "(" {
-						(*t)[a] = true
+						t[a] = true
 					}
 				default:
 					Panic("Parse WTF! Bad stack (probably an interpreter bug)")
@@ -310,8 +310,8 @@ func Run() {
 								Ret(big.NewInt(0))
 							case *List:
 								Ret(big.NewInt(Len(x)))
-							case *Set:
-								Ret(big.NewInt(int64(len(*x))))
+							case Set:
+								Ret(big.NewInt(int64(len(x))))
 							default:
 								Panic("WTF! " + op.String() + " takes a list or set")
 							}
@@ -350,7 +350,7 @@ func Run() {
 						var cdr interface{}
 						switch *op {
 						case OpSet:
-							cdr = &List{&Set{}, nil}
+							cdr = &List{Set{}, nil}
 						case OpAdd:
 							cdr = &List{big.NewInt(0), nil}
 						case OpMul:
@@ -369,10 +369,10 @@ func Run() {
 							SCar(NCdr(f, 2), NCdr(x, y))
 						case OpSet, OpSetAdd:
 							x := NCarS(f, 2, "WTF! 1st argument to "+op.String()+" must be a set")
-							(*x)[NCar(f, 3)] = true
+							x[NCar(f, 3)] = true
 						case OpSetRm:
 							x := NCarS(f, 2, "WTF! 1st argument to "+op.String()+" must be a set")
-							delete(*x, NCar(f, 3))
+							delete(x, NCar(f, 3))
 						default:
 							x := NCarI(f, 2, "WTF! "+op.String()+" takes numbers")
 							y := NCarI(f, 3, "WTF! "+op.String()+" takes numbers")
@@ -445,7 +445,7 @@ func Run() {
 			} else {
 				Ret(NCar(f, 2))
 			}
-		case *Set:
+		case Set:
 			Panic("TODO: evaluate the set")
 		default:
 			Ret(Car(f))
@@ -466,9 +466,9 @@ func PrintTree(ls interface{}) {
 			ls = Cdr(ls)
 		}
 		fmt.Print(")")
-	case *Set:
+	case Set:
 		fmt.Print("[")
-		for e := range *t {
+		for e := range t {
 			PrintTree(e)
 		}
 		fmt.Print("]")
@@ -499,8 +499,8 @@ func Lookup(ns interface{}, k Sym) (interface{}, interface{}, bool) {
 				return v, &List{ns, s}, ok
 			}
 		}
-	case *Set:
-		for k2 := range *t {
+	case Set:
+		for k2 := range t {
 			v, s, ok := Lookup(k2, k)
 			if ok {
 				return v, &List{ns, s}, true
@@ -560,8 +560,8 @@ func NCarL(ls interface{}, n int64, m string) *List {
 	return nCar
 }
 
-func NCarS(ls interface{}, n int64, m string) *Set {
-	nCar, ok := NCar(ls, n).(*Set)
+func NCarS(ls interface{}, n int64, m string) Set {
+	nCar, ok := NCar(ls, n).(Set)
 	Assert(ok, m)
 	return nCar
 }
