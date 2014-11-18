@@ -229,7 +229,7 @@ func Run() {
 				f = Cdr(f)
 				switch *op {
 				case OpSv, OpPr: // op, arg, ret
-					if *op == OpPr && NCdr(f, 2) != nil {
+					if *op == OpPr && HasCdr(f, 2) {
 						fmt.Print(L2Str(NCar(f, 2), "WTF! "+op.String()+" takes a string"))
 					}
 					if Cdr(e) == nil {
@@ -249,9 +249,9 @@ func Run() {
 					// op, then part, nil, ret
 					if Cdr(e) == nil {
 						Ret(nil)
-					} else if NCdr(f, 1) == nil {
+					} else if !HasCdr(f, 1) {
 						SCdr(f, Lt3(Cdr(e), Cdr(Cdr(e)), nil))
-					} else if NCdr(f, 3) == nil {
+					} else if !HasCdr(f, 3) {
 						SCdr(S, Lt(Lt(Car(NCar(f, 1)), nil), C))
 					} else if NCar(f, 2) == nil {
 						Ret(NCar(f, 3))
@@ -357,7 +357,7 @@ func Run() {
 							cdr = Lt(big.NewInt(1), nil)
 						}
 						SCdr(f, Lt(Cdr(e), cdr))
-					} else if NCdr(f, 3) != nil {
+					} else if HasCdr(f, 3) {
 						switch *op {
 						case OpNCar:
 							x := NCarL(f, 2, "WTF! "+op.String()+" takes a list")
@@ -403,9 +403,9 @@ func Run() {
 				case OpEq, OpNe, OpLt, OpGt, OpLte, OpGte: // op, arg, ret1, ret2
 					if Cdr(f) == nil {
 						SCdr(f, Lt(Cdr(e), nil))
-					} else if *op != OpEq && *op != OpNe && NCdr(f, 2) != nil && NCar(f, 2) == nil {
+					} else if *op != OpEq && *op != OpNe && HasCdr(f, 2) && NCar(f, 2) == nil {
 						Ret(nil)
-					} else if NCdr(f, 3) != nil {
+					} else if HasCdr(f, 3) {
 						c := NCarI(f, 2, "WTF! "+op.String()+" takes numbers").Cmp(NCarI(f, 3, "WTF! "+op.String()+" takes numbers"))
 						var b bool
 						switch *op {
@@ -579,23 +579,32 @@ func NCarI(ls interface{}, n int64, m string) *big.Int {
 }
 
 func NCdr(ls interface{}, n int64) interface{} {
-	if ls == nil || n == 0 {
+	Assert(ls != nil, "WTF! Out of bounds")
+	if n == 0 {
 		return ls
 	}
 	if n < 0 {
 		n2 := Len(ls) + n
-		if n2 < 0 {
-			return nil
-		}
+		Assert(n2 >= 0, "WTF! Out of bounds")
 		return NCdr(ls, n2)
 	}
 	return NCdr(Cdr(ls), n-1)
 }
 
-func Car(v interface{}) interface{} {
-	if v == nil {
-		return nil
+func HasCdr(ls interface{}, n int64) bool {
+	if ls == nil {
+		return false
 	}
+	if n == 0 {
+		return true
+	}
+	if n < 0 {
+		return Len(ls) >= -n
+	}
+	return HasCdr(Cdr(ls), n-1)
+}
+
+func Car(v interface{}) interface{} {
 	ls, ok := v.(*List)
 	Assert(ok, "WTF! "+OpCar.String()+" takes a list")
 	return ls.car
@@ -609,9 +618,6 @@ func SCar(v interface{}, car interface{}) interface{} {
 }
 
 func Cdr(v interface{}) interface{} {
-	if v == nil {
-		return nil
-	}
 	ls, ok := v.(*List)
 	Assert(ok, "WTF! "+OpCdr.String()+" takes a list")
 	return ls.cdr
