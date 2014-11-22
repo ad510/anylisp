@@ -1,4 +1,4 @@
-A stupid Lisp interpreter.
+A stupid Lisp interpreter. It's a personal thing.
 
 Copying
 -------
