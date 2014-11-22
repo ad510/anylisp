@@ -104,9 +104,9 @@ func Init() {
 }
 
 func Parse(code string) {
-	TempRoot = Lt(nil, nil)
-	P = Lt(TempRoot, nil)
-	S = Lt3(func() Set {
+	TempRoot = Ls(nil)
+	P = Ls(TempRoot)
+	S = Ls2(func() Set {
 		E := Set{}
 		for op := Op(0); op < NOp; op++ {
 			name := Names[op]
@@ -114,7 +114,7 @@ func Parse(code string) {
 			E[Lt(&name, &o)] = true
 		}
 		return E
-	}(), Lt(TempRoot, nil), nil)
+	}(), Ls(TempRoot))
 	sv, _, _ := Lookup(Car(S), Names[OpSv])
 	SCar(TempRoot, sv)
 	symS := Sym("s'")
@@ -169,7 +169,7 @@ func Parse(code string) {
 					sym := Sym(tok)
 					a = &sym
 				}
-				ls := Lt(a, nil)
+				ls := Ls(a)
 				switch t := Car(P).(type) {
 				case nil:
 					switch t2 := Car(Cdr(P)).(type) {
@@ -210,7 +210,7 @@ func Run() {
 		Ret := func(v interface{}) {
 			if C == Cdr(S) {
 				if Cdr(C) != nil {
-					SCdr(Last(NCar(C, 1)), Lt(v, nil))
+					SCdr(Last(NCar(C, 1)), Ls(v))
 				}
 				SCdr(S, Cdr(C))
 			}
@@ -224,7 +224,7 @@ func Run() {
 			Ret(v)
 		case *List:
 			if Cdr(f) == nil {
-				SCdr(S, Lt(Lt(Car(e), nil), C))
+				SCdr(S, Lt(Ls(Car(e)), C))
 			} else if op, ok := Car(Cdr(f)).(*Op); ok {
 				f = Cdr(f)
 				switch *op {
@@ -235,10 +235,10 @@ func Run() {
 					if Cdr(e) == nil {
 						Ret(nil)
 					} else if Cdr(f) == nil {
-						SCdr(f, Lt(Cdr(e), nil))
+						SCdr(f, Ls(Cdr(e)))
 					} else if Car(Cdr(f)) != nil {
-						SCdr(S, Lt(Lt(Car(NCar(f, 1)), nil), C))
-						SCdr(f, Lt(Cdr(NCar(f, 1)), nil))
+						SCdr(S, Lt(Ls(Car(NCar(f, 1))), C))
+						SCdr(f, Ls(Cdr(NCar(f, 1))))
 					} else {
 						Ret(NCar(f, 2))
 					}
@@ -250,23 +250,23 @@ func Run() {
 					if Cdr(e) == nil {
 						Ret(nil)
 					} else if !HasCdr(f, 1) {
-						SCdr(f, Lt3(Cdr(e), Cdr(Cdr(e)), nil))
+						SCdr(f, Ls2(Cdr(e), Cdr(Cdr(e))))
 					} else if !HasCdr(f, 3) {
-						SCdr(S, Lt(Lt(Car(NCar(f, 1)), nil), C))
+						SCdr(S, Lt(Ls(Car(NCar(f, 1))), C))
 					} else if NCar(f, 2) == nil {
 						Ret(NCar(f, 3))
 					} else if NCar(f, 3) != nil {
-						SCdr(f, Lt3(Cdr(NCar(f, 1)), nil, nil))
+						SCdr(f, Ls2(Cdr(NCar(f, 1)), nil))
 					} else if Cdr(NCar(f, 2)) == nil {
 						Ret(nil)
 					} else {
-						SCdr(f, Lt3(Cdr(NCar(f, 2)), Cdr(Cdr(NCar(f, 2))), nil))
+						SCdr(f, Ls2(Cdr(NCar(f, 2)), Cdr(Cdr(NCar(f, 2)))))
 					}
 				case OpCar, OpCdr, OpLast, OpSCar, OpSCdr, OpSPair, OpList, OpLen, OpLookup, OpSpawn: // op, arg, ret...
 					if Cdr(f) == nil {
-						SCdr(f, Lt(Cdr(e), nil))
+						SCdr(f, Ls(Cdr(e)))
 					} else if Car(Cdr(f)) != nil {
-						SCdr(S, Lt(Lt(Car(NCar(f, 1)), nil), C))
+						SCdr(S, Lt(Ls(Car(NCar(f, 1))), C))
 						SCar(Cdr(f), Cdr(NCar(f, 1)))
 					} else {
 						AssertArgs := func(n int64) {
@@ -337,9 +337,9 @@ func Run() {
 							}
 							p, err := os.StartProcess(name, argv, &os.ProcAttr{}) // TODO: pass in attr
 							if err == nil {
-								Ret(Lt3(big.NewInt(int64(p.Pid)), nil, nil))
+								Ret(Ls2(big.NewInt(int64(p.Pid)), nil))
 							} else {
-								Ret(Lt3(nil, Str2L(err.Error()), nil))
+								Ret(Ls2(nil, Str2L(err.Error())))
 							}
 						default:
 							op.Panic()
@@ -350,11 +350,11 @@ func Run() {
 						var cdr interface{}
 						switch *op {
 						case OpSet:
-							cdr = Lt(Set{}, nil)
+							cdr = Ls(Set{})
 						case OpAdd:
-							cdr = Lt(big.NewInt(0), nil)
+							cdr = Ls(big.NewInt(0))
 						case OpMul:
-							cdr = Lt(big.NewInt(1), nil)
+							cdr = Ls(big.NewInt(1))
 						}
 						SCdr(f, Lt(Cdr(e), cdr))
 					} else if HasCdr(f, 3) {
@@ -393,7 +393,7 @@ func Run() {
 						}
 						SCdr(Cdr(Cdr(f)), nil)
 					} else if Car(Cdr(f)) != nil {
-						SCdr(S, Lt(Lt(Car(NCar(f, 1)), nil), C))
+						SCdr(S, Lt(Ls(Car(NCar(f, 1))), C))
 						SCar(Cdr(f), Cdr(NCar(f, 1)))
 					} else {
 						retL, ok := Cdr(Cdr(f)).(*List)
@@ -402,7 +402,7 @@ func Run() {
 					}
 				case OpEq, OpNe, OpLt, OpGt, OpLte, OpGte: // op, arg, ret1, ret2
 					if Cdr(f) == nil {
-						SCdr(f, Lt(Cdr(e), nil))
+						SCdr(f, Ls(Cdr(e)))
 					} else if *op != OpEq && *op != OpNe && HasCdr(f, 2) && NCar(f, 2) == nil {
 						Ret(nil)
 					} else if HasCdr(f, 3) {
@@ -430,7 +430,7 @@ func Run() {
 							Ret(nil)
 						}
 					} else if Car(Cdr(f)) != nil {
-						SCdr(S, Lt(Lt(Car(NCar(f, 1)), nil), C))
+						SCdr(S, Lt(Ls(Car(NCar(f, 1))), C))
 						SCar(Cdr(f), Cdr(NCar(f, 1)))
 					} else if *op != OpEq && *op != OpNe && Cdr(Cdr(f)) != nil {
 						Ret(Car(Last(f)))
@@ -441,7 +441,7 @@ func Run() {
 					op.Panic()
 				}
 			} else if Cdr(Cdr(f)) == nil { // e, op, ret
-				SCdr(S, Lt(Lt(Car(Cdr(f)), nil), C))
+				SCdr(S, Lt(Ls(Car(Cdr(f))), C))
 			} else {
 				Ret(NCar(f, 2))
 			}
@@ -487,7 +487,7 @@ func Lookup(ns interface{}, k Sym) (interface{}, interface{}, bool) {
 		k2, ok := Car(t).(*Sym)
 		if ok {
 			if k == *k2 {
-				return Cdr(t), Lt(ns, nil), true
+				return Cdr(t), Ls(ns), true
 			}
 		} else {
 			v, s, ok := Lookup(Car(t), k)
@@ -526,7 +526,7 @@ func L2Str(ls interface{}, m string) string {
 func Str2L(s string) interface{} {
 	var f, b interface{}
 	for i := 0; i < len(s); i++ {
-		e := Lt(big.NewInt(int64(s[i])), nil)
+		e := Ls(big.NewInt(int64(s[i])))
 		if f == nil {
 			f, b = e, e
 		} else {
@@ -639,11 +639,19 @@ func Last(v interface{}) interface{} {
 	return ls
 }
 
+func Ls(car interface{}) interface{} {
+	return Lt(car, nil)
+}
+
+func Ls2(car0 interface{}, car1 interface{}) interface{} {
+	return Lt(car0, Ls(car1))
+}
+
 func Lt(car interface{}, cdr interface{}) interface{} {
 	return &List{car, cdr}
 }
 
-func Lt3(car0 interface{}, car1 interface{}, cdr interface{}) interface{} {
+func Lt2(car0 interface{}, car1 interface{}, cdr interface{}) interface{} {
 	return Lt(car0, Lt(car1, cdr))
 }
 
