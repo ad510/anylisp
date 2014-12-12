@@ -1,6 +1,7 @@
-package anylisp
+package main
 import(
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -60,6 +61,14 @@ var(
 	S        interface{}
 	TempRoot interface{}
 )
+func main(){
+	Assert(len(os.Args)>=2,"Usage: anylisp program.any [args]")
+	file,err:=ioutil.ReadFile(os.Args[1]);Assert(err==nil,"'"+os.Args[1]+"' not found")
+	Init()
+	Parse(string(file))
+	PrintTree(TempRoot);fmt.Println()
+	Run();fmt.Println()
+}
 func Init(){
 	Names=map[Op]Sym{
 		OpSv:    "sv'",
@@ -164,6 +173,23 @@ func Parse(code string){
 		}
 	}
 	Assert(Cdr(P)==nil,"Parse WTF! Too few )s")
+}
+func PrintTree(ls interface{}){
+	switch t:=ls.(type){
+	case nil:fmt.Print("()")
+	case Inter:fmt.Printf("'%x ",t)
+	case*List:
+		fmt.Print("(")
+		for ls!=nil{PrintTree(Car(ls));ls=Cdr(ls)}
+		fmt.Print(")")
+	case Set:
+		fmt.Print("[")
+		for e:=range t{PrintTree(e)}
+		fmt.Print("]")
+	case*Op:fmt.Print(t.String()+" ")
+	case*Sym:fmt.Print(string(*t)+" ")
+	default:Panic("Unrecognized object in tree")
+	}
 }
 func Run(){
 	for Cdr(S)!=nil{
@@ -360,23 +386,6 @@ func Run(){
 		case Set:Panic("TODO: evaluate the set")
 		default:Ret(Car(f))
 		}
-	}
-}
-func PrintTree(ls interface{}){
-	switch t:=ls.(type){
-	case nil:fmt.Print("()")
-	case Inter:fmt.Printf("'%x ",t)
-	case*List:
-		fmt.Print("(")
-		for ls!=nil{PrintTree(Car(ls));ls=Cdr(ls)}
-		fmt.Print(")")
-	case Set:
-		fmt.Print("[")
-		for e:=range t{PrintTree(e)}
-		fmt.Print("]")
-	case*Op:fmt.Print(t.String()+" ")
-	case*Sym:fmt.Print(string(*t)+" ")
-	default:Panic("Unrecognized object in tree")
 	}
 }
 func Lookup(ns interface{},k Sym)(interface{},interface{},bool){
