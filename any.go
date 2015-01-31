@@ -7,14 +7,10 @@ import(
   "strings"
 )
 type(
-  R struct{
-    v interface{}
-  }
-  List struct{
-    car interface{}
-    cdr interface{}
-  }
-  Set map[interface{}]bool
+  V interface{}
+  R struct{v V}
+  List struct{car V;cdr V}
+  Set map[V]bool
   Inter interface{
     Add(x,y*big.Int)*big.Int
     Cmp(y*big.Int)(r int)
@@ -62,9 +58,9 @@ const(
 )
 var(
   Names    map[Op]Sym
-  P        interface{}
-  S        interface{}
-  TempRoot interface{}
+  P        V
+  S        V
+  TempRoot V
 )
 func main(){
   Assert(len(os.Args)>=2,"Usage: anylisp program.any [args]")
@@ -143,7 +139,7 @@ func Parse(code string){
         _,ok:=Car(P).(Set);Assert(ok,"Parse WTF! Unexpected ]")
         P=Cdr(P)
       }else if len(tok)>0{
-        var a interface{}
+        var a V
         if tok=="("{
           a=nil
         }else if tok=="["{
@@ -181,7 +177,7 @@ func Parse(code string){
   }
   Assert(Cdr(P)==nil,"Parse WTF! Too few )s")
 }
-func PrintTree(ls interface{}){
+func PrintTree(ls V){
   switch t:=ls.(type){
   case nil:fmt.Print("()")
   case Inter:fmt.Printf("'%x ",t)
@@ -202,7 +198,7 @@ func Run(){
   for Cdr(S)!=nil{
     E:=Car(S)//environment
     C:=Cdr(S)//call stack
-    Ret:=func(v interface{}){
+    Ret:=func(v V){
       if C==Cdr(S){
         if Cdr(C)!=nil{SCdr(Last(NCar(C,1)),Ls(v))}
         SCdr(S,Cdr(C))
@@ -315,7 +311,7 @@ func Run(){
           }
         case OpNCar,OpNCdr,OpSet,OpSetAdd,OpSetRm,OpAdd,OpSub,OpMul,OpIntDiv://op, arg, sum, ret
           if Cdr(f)==nil{
-            var cdr interface{}
+            var cdr V
             switch*op{
             case OpSet:cdr=Ls(Set{})
             case OpAdd:cdr=Ls(big.NewInt(0))
@@ -397,7 +393,7 @@ func Run(){
     }
   }
 }
-func Lookup(ns interface{},k Sym)(interface{},interface{},bool){
+func Lookup(ns V,k Sym)(V,V,bool){
   switch t:=ns.(type){
   case*List:
     k2,ok:=Car(t).(*Sym)
@@ -412,7 +408,7 @@ func Lookup(ns interface{},k Sym)(interface{},interface{},bool){
   }
   return nil,nil,false
 }
-func L2Str(ls interface{},m string)string{
+func L2Str(ls V,m string)string{
   _,ok:=ls.(*List);Assert(ok||ls==nil,m)
   s:=make([]uint8,Len(ls))
   for i:=0;ls!=nil;i++{
@@ -422,41 +418,41 @@ func L2Str(ls interface{},m string)string{
   }
   return string(s)
 }
-func Str2L(s string)interface{}{
-  var f,b interface{}
+func Str2L(s string)V{
+  var f,b V
   for i:=0;i<len(s);i++{
     e:=Ls(big.NewInt(int64(s[i])))
     if f==nil{f,b=e,e}else{SCdr(b,e);b=e}
   }
   return f
 }
-func Len(ls interface{})int64{
+func Len(ls V)int64{
   if ls==nil{return 0}
   cdr,ok:=Cdr(ls).(*List)
   if!ok{return 1}
   return Len(cdr)+1
 }
-func NCar(ls interface{},n int64)interface{}{
+func NCar(ls V,n int64)V{
   nCdr,ok:=NCdr(ls,n).(*List);Assert(ok,"WTF! Out of bounds")
   return Car(nCdr)
 }
-func NCarL(ls interface{},n int64,m string)*List{
+func NCarL(ls V,n int64,m string)*List{
   nCar,ok:=NCar(ls,n).(*List);Assert(ok,m)
   return nCar
 }
-func NCarS(ls interface{},n int64,m string)Set{
+func NCarS(ls V,n int64,m string)Set{
   nCar,ok:=NCar(ls,n).(Set);Assert(ok,m)
   return nCar
 }
-func NCarSym(ls interface{},n int64,m string)*Sym{
+func NCarSym(ls V,n int64,m string)*Sym{
   nCar,ok:=NCar(ls,n).(*Sym);Assert(ok,m)
   return nCar
 }
-func NCarI(ls interface{},n int64,m string)*big.Int{
+func NCarI(ls V,n int64,m string)*big.Int{
   nCar,ok:=NCar(ls,n).(*big.Int);Assert(ok,m)
   return nCar
 }
-func NCdr(ls interface{},n int64)interface{}{
+func NCdr(ls V,n int64)V{
   Assert(ls!=nil,"WTF! Out of bounds")
   if n==0{return ls}
   if n<0{
@@ -465,47 +461,39 @@ func NCdr(ls interface{},n int64)interface{}{
   }
   return NCdr(Cdr(ls),n-1)
 }
-func HasCdr(ls interface{},n int64)bool{
+func HasCdr(ls V,n int64)bool{
   if ls==nil{return false}
   if n==0{return true}
   if n<0{return Len(ls)>=-n}
   return HasCdr(Cdr(ls),n-1)
 }
-func Car(v interface{})interface{}{
+func Car(v V)V{
   ls,ok:=v.(*List);Assert(ok,"WTF! "+OpCar.String()+" takes a list")
   return ls.car
 }
-func SCar(v interface{},car interface{})interface{}{
+func SCar(v V,car V)V{
   ls,ok:=v.(*List);Assert(ok,"WTF! 1st argument to "+OpSCar.String()+" must be a list")
   ls.car=car
   return ls
 }
-func Cdr(v interface{})interface{}{
+func Cdr(v V)V{
   ls,ok:=v.(*List);Assert(ok,"WTF! "+OpCdr.String()+" takes a list")
   return ls.cdr
 }
-func SCdr(v interface{},cdr interface{})interface{}{
+func SCdr(v V,cdr V)V{
   ls,ok:=v.(*List);Assert(ok,"WTF! 1st argument to "+OpSCdr.String()+" must be a list")
   ls.cdr=cdr
   return ls
 }
-func Last(v interface{})interface{}{
+func Last(v V)V{
   ls,ok:=v.(*List);Assert(ok,"WTF! "+OpLast.String()+" takes a list")
   if cdr,ok:=ls.cdr.(*List);ok{return Last(cdr)};return ls
 }
-func Ls(car interface{})interface{}{
-  return Lt(car,nil)
-}
-func Ls2(car0 interface{},car1 interface{})interface{}{
-  return Lt(car0,Ls(car1))
-}
-func Lt(car interface{},cdr interface{})interface{}{
-  return &List{car,cdr}
-}
-func Lt2(car0 interface{},car1 interface{},cdr interface{})interface{}{
-  return Lt(car0,Lt(car1,cdr))
-}
-func SR(v interface{},x interface{})interface{}{
+func Ls(car V)V               {return Lt(car,nil)}
+func Ls2(car0 V,car1 V)V      {return Lt(car0,Ls(car1))}
+func Lt(car V,cdr V)V         {return &List{car,cdr}}
+func Lt2(car0 V,car1 V,cdr V)V{return Lt(car0,Lt(car1,cdr))}
+func SR(v V,x V)V{
   r,ok:=v.(*R);Assert(ok,"WTF! 1st argument to "+OpSR.String()+" must be a ref")
   r.v=x
   return x
