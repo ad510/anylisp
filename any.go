@@ -1,11 +1,5 @@
 package main
-import(
-  "fmt"
-  "io/ioutil"
-  "math/big"
-  "os"
-  "strings"
-)
+import("fmt";"io/ioutil";"math/big";"os";"strings")
 type(
   V interface{}
   R struct{v V}
