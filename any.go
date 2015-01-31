@@ -7,6 +7,9 @@ import(
   "strings"
 )
 type(
+  R struct{
+    v interface{}
+  }
   List struct{
     car interface{}
     cdr interface{}
@@ -28,9 +31,11 @@ const(
   OpPr
   OpQ
   OpIf
+  OpR
   OpCar
   OpCdr
   OpLast
+  OpSR
   OpSCar
   OpSCdr
   OpSPair
@@ -75,9 +80,11 @@ func Init(){
     OpPr:    "pr'",
     OpQ:     "q'",
     OpIf:    "?'",
+    OpR:     "$'",
     OpCar:   ":^'",
     OpCdr:   ":>'",
     OpLast:  ":|'",
+    OpSR:    "=$'",
     OpSCar:  "=:^'",
     OpSCdr:  "=:>'",
     OpSPair: "=:'",
@@ -203,6 +210,7 @@ func Run(){
     }
     f:=Car(C)//stack frame
     switch e:=Car(f).(type){//expression
+    case*R:Ret(e.v)
     case*Sym:
       fmt.Print(string(*e)+" ")
       v,_,ok:=Lookup(E,*e);Assert(ok,"WTF! \""+string(*e)+"\" not defined")
@@ -236,7 +244,7 @@ func Run(){
           case Cdr(NCar(f,2))==nil:Ret(nil)
           default:SCdr(f,Ls2(Cdr(NCar(f,2)),Cdr(Cdr(NCar(f,2)))))
           }
-        case OpCar,OpCdr,OpLast,OpSCar,OpSCdr,OpSPair,OpList,OpLen,OpLookup,OpSpawn://op, arg, ret...
+        case OpR,OpCar,OpCdr,OpLast,OpSR,OpSCar,OpSCdr,OpSPair,OpList,OpLen,OpLookup,OpSpawn://op, arg, ret...
           if Cdr(f)==nil{
             SCdr(f,Ls(Cdr(e)))
           }else if Car(Cdr(f))!=nil{
@@ -247,19 +255,21 @@ func Run(){
               Assert(Len(f)==n+2,fmt.Sprintf("WTF! %s takes %d arguments but you gave it %d",op.String(),n,Len(f)-2))
             }
             switch*op{
-            case OpCar,OpCdr,OpLast:
+            case OpR,OpCar,OpCdr,OpLast:
               AssertArgs(1)
               x:=NCar(f,2)
               switch*op{
+              case OpR:Ret(&R{x})
               case OpCar:Ret(Car(x))
               case OpCdr:Ret(Cdr(x))
               case OpLast:Ret(Last(x))
               default:op.Panic()
               }
-            case OpSCar,OpSCdr,OpSPair:
+            case OpSR,OpSCar,OpSCdr,OpSPair:
               AssertArgs(2)
               x:=NCar(f,2)
               switch*op{
+              case OpSR:Ret(SR(x,NCar(f,3)))
               case OpSCar:Ret(SCar(x,NCar(f,3)))
               case OpSCdr:Ret(SCdr(x,NCar(f,3)))
               case OpSPair:
@@ -494,6 +504,11 @@ func Lt(car interface{},cdr interface{})interface{}{
 }
 func Lt2(car0 interface{},car1 interface{},cdr interface{})interface{}{
   return Lt(car0,Lt(car1,cdr))
+}
+func SR(v interface{},x interface{})interface{}{
+  r,ok:=v.(*R);Assert(ok,"WTF! 1st argument to "+OpSR.String()+" must be a ref")
+  r.v=x
+  return x
 }
 func(op Op)String()string{return string(Names[op])}
 func(op Op)Panic(){Panic("WTF! Unrecognized function \""+op.String()+"\" (probably an interpreter bug)")}
